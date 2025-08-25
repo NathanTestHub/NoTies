@@ -1,0 +1,75 @@
+.left-sidebar {
+  background: #001030;
+  color: white;
+  height: 75vh;
+}
+.left-sidebar-top {
+  padding: 20px;
+}
+.left-sidebar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.left-sidebar-nav .logo {
+  max-width: 140px;
+}
+.left-sidebar-nav .menu img {
+  max-height: 20px;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.left-sidebar-search {
+  background-color: #002670;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-top: 20px;
+}
+.left-sidebar-search img {
+  width: 16px;
+}
+.left-sidebar-search input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  font-size: 11px;
+}
+.left-sidebar-search input::placeholder {
+  color: #c8c8c8;
+}
+.left-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  height: 70%;
+  overflow-y: scroll;
+}
+.friends img {
+  width: 35px;
+  aspect-ratio: 1/1;
+  border-radius: 50%;
+}
+.friends {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.friends div {
+  display: flex;
+  flex-direction: column;
+}
+.friends span {
+  font-size: 11px;
+  color: #9f9f9f;
+}
+.friends:hover {
+  background-color: #077eff;
+}
+.friends:hover span {
+  color: white;
+}
