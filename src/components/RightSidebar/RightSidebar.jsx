@@ -1,12 +1,33 @@
-import React from 'react'
-import './RightSidebar.css'
+import React from "react";
+import "./RightSidebar.css";
+import assets from "../../assets/assets";
 
 const RightSidebar = () => {
   return (
-    <div>
-      
+    <div className="right-sidebar">
+      <div className="right-sidebar-profile">
+        <img src={assets.profile_img} alt="" />
+        <h3>
+          John Doe
+          <img src={assets.green_dot} className="dot" alt="" />
+        </h3>
+        <p>Hey, there i'm using NoTies.</p>
+      </div>
+      <hr />
+      <div className="right-sidebar-media">
+        <p>Media</p>
+        <div>
+          <img src={assets.pic1} alt="" />
+          <img src={assets.pic2} alt="" />
+          <img src={assets.pic3} alt="" />
+          <img src={assets.pic4} alt="" />
+          <img src={assets.pic1} alt="" />
+          <img src={assets.pic2} alt="" />
+        </div>
+      </div>
+      <button>Logout</button>
     </div>
-  )
-}
+  );
+};
 
-export default RightSidebar
+export default RightSidebar;
