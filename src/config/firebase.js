@@ -1,6 +1,17 @@
 import { initializeApp } from "firebase/app";
-import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, setDoc, doc, collection, addDoc } from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import {
+  getFirestore,
+  setDoc,
+  doc,
+  collection,
+  addDoc,
+} from "firebase/firestore";
 import { toast } from "react-toastify";
 
 // Firebase config
@@ -10,7 +21,7 @@ const firebaseConfig = {
   projectId: "noties-75152",
   storageBucket: "noties-75152.appspot.com",
   messagingSenderId: "330839645372",
-  appId: "1:330839645372:web:862ccf1c8eb06d94d7c4b9"
+  appId: "1:330839645372:web:862ccf1c8eb06d94d7c4b9",
 };
 
 // Initialize Firebase
@@ -46,21 +57,28 @@ const signup = async (username, email, password) => {
     console.log("Creating empty chat doc...");
     await setDoc(doc(db, "chats", user.uid), { chatData: [] });
     console.log("Chat doc created");
-
   } catch (error) {
     console.error(error);
-    toast.error(error.code.split('/')[1].split('-').join(" "));
+    toast.error(error.code.split("/")[1].split("-").join(" "));
   }
 };
 
 const login = async (email, password) => {
   try {
-      await signInWithEmailAndPassword(auth, email, password) 
+    await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
-      console.error(error);
-      toast.error(error.code.split('/')[1].split('-').join(" "));
+    console.error(error);
+    toast.error(error.code.split("/")[1].split("-").join(" "));
   }
-}
+};
 
+const logout = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error(error);
+    toast.error(error.code.split("/")[1].split("-").join(" "));
+  }
+};
 
-export { signup, login, db, auth };
+export { signup, login, logout, db, auth };
