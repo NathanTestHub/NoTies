@@ -5,14 +5,18 @@ import Chat from "./pages/Chat/Chat.jsx";
 import ProfileUpdate from "./pages/ProfileUpdate/ProfileUpdate.jsx";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase.js";
+import { useContext } from "react";
+import { AppContext } from "./context/AppContext.jsx";
 
 const App = () => {
   const navigate = useNavigate();
+  const {loadUserData} = useContext(AppContext)
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         navigate("/chat");
+        await loadUserData(user.uid)
       } else {
         navigate("/");
       }
