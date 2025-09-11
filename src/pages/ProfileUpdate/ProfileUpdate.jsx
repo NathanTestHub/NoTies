@@ -16,6 +16,7 @@ const ProfileUpdate = () => {
   const [bio, setBio] = useState("");
   const [uid, setUid] = useState("");
   const [prevImage, setPrevImage] = useState("");
+  const {setUserData} = useContext(AppContext)
 
   const profileUpdate = async (event) => {
     event.preventDefault();
@@ -39,8 +40,12 @@ const ProfileUpdate = () => {
           name: name
         })
       }
+      const snap = await getDoc(docRef);
+      setUserData(snap.data());
+      navigate('/chat');
     } catch (error) {
-
+      console.error(error);
+      toast.error(error.message);
     }
   };
 
