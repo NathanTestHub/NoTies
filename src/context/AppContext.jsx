@@ -21,7 +21,7 @@ const AppContextProvider = (props) => {
                 navigate('/chat')
             }
             else {
-                navigate('/profile')
+                navigate('/profile-update')
             }
             await updateDoc(userRef,{
                 lastSeen:Date.now()
