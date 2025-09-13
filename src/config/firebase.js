@@ -55,7 +55,7 @@ const signup = async (username, email, password) => {
 
     // Create empty chat document
     console.log("Creating empty chat doc...");
-    await setDoc(doc(db, "chats", user.uid), { chatData: [] });
+    await setDoc(doc(db, "chats", user.uid), { chatsData: [] });
     console.log("Chat doc created");
   } catch (error) {
     console.error(error);
