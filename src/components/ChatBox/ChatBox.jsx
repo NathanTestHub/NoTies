@@ -1,14 +1,36 @@
-import React from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "./ChatBox.css";
 import assets from "../../assets/assets";
+import { AppContext } from "../../context/AppContext";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../../config/firebase";
 
 const ChatBox = () => {
-  return (
+  const { userData, messagesId, chatUser, messages, setMessages } =
+    useContext(AppContext);
+
+  const [Input, setInput] = useState("");
+
+  useEffect(()=>{
+    if (messagesId) {
+
+      const unSub = onSnapshot(doc(db, 'messages', messagesId), (res)=>{
+        setMessages(res.data().messages.reverse())
+        console.log(res.data().messages.reverse());
+      })
+      return ()=> {
+        unSub();
+      }
+
+    }
+  },[messagesId])
+
+  return chatUser ? (
     <div className="chat-box">
       <div className="chat-user">
-        <img src={assets.profile_img} alt="" />
+        <img src={chatUser.userData.avatar} alt="" />
         <p>
-          John Doe
+          {chatUser.userData.name}
           <img className="dot" src={assets.green_dot} alt="" />
         </p>
         <img src={assets.help_icon} className="help" alt="" />
@@ -48,6 +70,11 @@ const ChatBox = () => {
         </label>
         <img src={assets.send_button} alt="" />
       </div>
+    </div>
+  ) : (
+    <div className="chat-welcome">
+      <img src={assets.logo_icon} alt="" />
+      <p>Chat anytime, anywhere</p>
     </div>
   );
 };
