@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
+import upload from '../../lib/upload';
 
 const ChatBox = () => {
   const { userData, messagesId, chatUser, messages, setMessages } =
@@ -22,11 +23,11 @@ const ChatBox = () => {
     try {
       if (input && messagesId) {
         await updateDoc(doc(db, "messages", messagesId), {
-            messages: arrayUnion({
-              sId: userData.id,
-              text: input,
-              createdAt: new Date(),
-            }),
+          messages: arrayUnion({
+            sId: userData.id,
+            text: input,
+            createdAt: new Date(),
+          }),
         });
 
         const userIDs = [chatUser.rId, userData.id];
@@ -46,7 +47,7 @@ const ChatBox = () => {
               userChatData.chatsData[chatIndex].messageSeen = false;
             }
             await updateDoc(userChatsRef, {
-              chatsData: userChatData.chatsData
+              chatsData: userChatData.chatsData,
             });
           }
         });
@@ -57,11 +58,60 @@ const ChatBox = () => {
     setInput("");
   };
 
+  const sendImage = async (e) => {
+    try {
+      const fileUrl = await upload(e.target.files[0]);
+
+      if (fileUrl && messagesId) {
+        await updateDoc(doc(db, "messages", messagesId), {
+          messages: arrayUnion({
+            sId: userData.id,
+            image: fileUrl,
+            createdAt: new Date(),
+          }),
+        });
+        const userIDs = [chatUser.rId, userData.id];
+
+        userIDs.forEach(async (id) => {
+          const userChatsRef = doc(db, "chats", id);
+          const userChatsSnapShot = await getDoc(userChatsRef);
+
+          if (userChatsSnapShot.exists()) {
+            const userChatData = userChatsSnapShot.data();
+            const chatIndex = userChatData.chatsData.findIndex(
+              (c) => c.messageId === messagesId
+            );
+            userChatData.chatsData[chatIndex].lastMessage = "Image";
+            userChatData.chatsData[chatIndex].updatedAt = Date.now();
+            if (userChatData.chatsData[chatIndex].rId === userData.id) {
+              userChatData.chatsData[chatIndex].messageSeen = false;
+            }
+            await updateDoc(userChatsRef, {
+              chatsData: userChatData.chatsData,
+            });
+          }
+        });
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const convertTimestamp = (timestamp) => {
+    let date = timestamp.toDate();
+    const hour = date.getHours();
+    const minute = date.getMinutes().toString().padStart(2, "0");
+    if (hour > 12) {
+      return hour - 12 + ":" + minute + "PM";
+    } else {
+      return hour + ":" + minute + "AM";
+    }
+  };
+
   useEffect(() => {
     if (messagesId) {
       const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
         setMessages(res.data().messages.reverse());
-        console.log(res.data().messages.reverse());
       });
       return () => {
         unSub();
@@ -81,29 +131,31 @@ const ChatBox = () => {
       </div>
 
       <div className="chat-messages">
-        <div className="sent-message">
-          <p className="message">I need help with my order.</p>
-          <div>
-            <img src={assets.profile_img} alt="" />
-            <p>10:30 AM</p>
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={
+              message.sId === userData.id ? "sent-message" : "received-message"
+            }
+          >
+            {message["image"] ? (
+              <img className="message-image" src={message.image} alt="" />
+            ) : (
+              <p className="message">{message.text}</p>
+            )}
+            <div>
+              <img
+                src={
+                  message.sId === userData.id
+                    ? userData.avatar
+                    : chatUser.userData.avatar
+                }
+                alt=""
+              />
+              <p>{convertTimestamp(message.createdAt)}</p>
+            </div>
           </div>
-        </div>
-
-        <div className="sent-message">
-          <img className="message-image" src={assets.pic1} alt="" />
-          <div>
-            <img src={assets.profile_img} alt="" />
-            <p>10:30 AM</p>
-          </div>
-        </div>
-
-        <div className="received-message">
-          <p className="message">Hello! How can I assist you today?</p>
-          <div>
-            <img src={assets.profile_img} alt="" />
-            <p>10:32 AM</p>
-          </div>
-        </div>
+        ))}
       </div>
 
       <div className="chat-input">
@@ -113,7 +165,13 @@ const ChatBox = () => {
           type="text"
           placeholder="Type your message..."
         />
-        <input type="file" id="image" accept="image/png, image/jpeg" hidden />
+        <input
+          onChange={sendImage}
+          type="file"
+          id="image"
+          accept="image/png, image/jpeg"
+          hidden
+        />
         <label htmlFor="image">
           <img src={assets.gallery_icon} alt="" />
         </label>
