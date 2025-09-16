@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
-import upload from '../../lib/upload';
+import upload from "../../lib/upload";
 
 const ChatBox = () => {
   const { userData, messagesId, chatUser, messages, setMessages } =
@@ -124,8 +124,10 @@ const ChatBox = () => {
       <div className="chat-user">
         <img src={chatUser.userData.avatar} alt="" />
         <p>
-          {chatUser.userData.name}
-          <img className="dot" src={assets.green_dot} alt="" />
+          {chatUser ? chatUser.userData.name : "Richard Sanford"}{" "}
+          {Date.now() - chatUser.userData.lastSeen <= 70000 ? (
+            <img className="dot" src={assets.green_dot} alt="" />
+          ) : null}
         </p>
         <img src={assets.help_icon} className="help" alt="" />
       </div>
