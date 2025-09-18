@@ -47,13 +47,14 @@
     color: #808080
 }
 .login-forgot{
-    display: flex;
+    display: block;
     gap: 5px;
     font-size: 14px;
     color: #808080
 }
 .login-toggle{
-    display: flex;
+    display: block;
+    padding: 5px;
     gap: 5px;
     font-size: 14px;
     color: #808080
@@ -61,4 +62,11 @@
 .login-toggle span{
     color: #077eff;
     cursor: pointer;
+}
+@media (ma-width: 768px) {
+    .login{
+        flex-direction: column;
+        justify-content: center;
+        gap: 30px;
+    }
 }

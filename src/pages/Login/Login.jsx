@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./Login.css";
 import assets from "../../assets/assets";
-import { signup, login } from "../../config/firebase";
+import { signup, login, resetPass } from "../../config/firebase";
 
 const Login = () => {
   const [currentForm, setCurrentForm] = useState("Sign Up");
@@ -10,22 +10,18 @@ const Login = () => {
   const [password, setPassword] = useState("");
 
   const onSubmitHandler = (event) => {
-      event.preventDefault();
-      if (currentForm === "Sign Up") {
-        signup(userName, email, password)
-      }
-      else {
-        login(email, password)
-      }
-  }
+    event.preventDefault();
+    if (currentForm === "Sign Up") {
+      signup(userName, email, password);
+    } else {
+      login(email, password);
+    }
+  };
 
   return (
     <div className="login">
       <img src={assets.logo_big} alt="NoTies Logo" className="logo" />
-      <form 
-        onSubmit={onSubmitHandler}
-        className="login-form"
-      >
+      <form onSubmit={onSubmitHandler} className="login-form">
         <h2 className="sign-up-header">{currentForm}</h2>
         {currentForm === "Sign Up" ? (
           <input
@@ -74,6 +70,12 @@ const Login = () => {
               </span>{" "}
             </p>
           )}
+          {currentForm === "Login" ? (
+            <p className="login-toggle">
+              Forgot Password ?{" "}
+              <span onClick={() => resetPass(email)}>Click here</span>
+            </p>
+          ) : null}
         </div>
       </form>
     </div>
