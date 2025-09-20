@@ -49,7 +49,8 @@ const LeftSidebar = () => {
             }
           });
 
-          if (!userExist) { // <-- FIXED: show user if NOT already in chatData
+          if (!userExist) {
+            // <-- FIXED: show user if NOT already in chatData
             setUser(querySnap.docs[0].data());
           } else {
             setUser(null);
@@ -57,7 +58,7 @@ const LeftSidebar = () => {
         } else {
           setUser(null);
         }
-      } 
+      }
     } catch (error) {}
   };
 
@@ -165,27 +166,39 @@ const LeftSidebar = () => {
       <div className="left-sidebar-list">
         {showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
-            <img src={user.avatar} alt="" />
-            <p>{user.name}</p>
+            <img
+              src={user.avatar || assets.defaultAvatar}
+              alt={user.name || "User"}
+            />
+            <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          chatData.map((item, index) => (
-            <div
-              onClick={() => setChat(item)}
-              key={index}
-              className={`friends ${
-                item.messageSeen || item.messageId === messagesId
-                  ? ""
-                  : "border"
-              }`}
-            >
-              <img src={item.userData.avatar} alt="" />
-              <div>
-                <p>{item.userData.name}</p>
-                <span>{item.lastMessage}</span>
+          chatData.map((item, index) => {
+            if (!item.userData) {
+              return null; // skip if no userData yet
+            }
+
+            return (
+              <div
+                onClick={() => setChat(item)}
+                key={index}
+                className={`friends ${
+                  item.messageSeen || item.messageId === messagesId
+                    ? ""
+                    : "border"
+                }`}
+              >
+                <img
+                  src={item.userData.avatar || assets.defaultAvatar}
+                  alt={item.userData.name || "Unknown User"}
+                />
+                <div>
+                  <p>{item.userData.name || "Unknown User"}</p>
+                  <span>{item.lastMessage || ""}</span>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
