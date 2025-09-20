@@ -8,7 +8,7 @@ import { auth } from "./config/firebase.js";
 import { useContext } from "react";
 import { AppContext } from "./context/AppContext.jsx";
 import { ToastContainer } from "react-toastify";
-import Filter from "./pages/Filter/Filter.jsx";
+import FormCheck from "./pages/FormCheck/FormCheck.jsx";
 
 const App = () => {
   const navigate = useNavigate();
@@ -32,6 +32,7 @@ const App = () => {
         <Route path="/" element={<Login />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile-update" element={<ProfileUpdate />} />
+        <Route path="/formCheck" element={<FormCheck />} />
       </Routes>
     </>
   );
