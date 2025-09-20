@@ -43,20 +43,21 @@ const LeftSidebar = () => {
         const querySnap = await getDocs(q);
         if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
           let userExist = false;
-          chatData.map((user) => {
+          chatData.forEach((user) => {
             if (user.rId === querySnap.docs[0].data().id) {
               userExist = true;
             }
           });
-          if (userExist) {
+
+          if (!userExist) { // <-- FIXED: show user if NOT already in chatData
             setUser(querySnap.docs[0].data());
+          } else {
+            setUser(null);
           }
         } else {
           setUser(null);
         }
-      } else {
-        setShowSearch(false);
-      }
+      } 
     } catch (error) {}
   };
 
@@ -91,7 +92,7 @@ const LeftSidebar = () => {
         }),
       });
 
-      const uSnap = await getDoc(doc(db, "user", user.id));
+      const uSnap = await getDoc(doc(db, "users", user.id));
       const uData = uSnap.data();
       setChat({
         messagesId: newMessageRef.id,

@@ -8,6 +8,7 @@ import { auth } from "./config/firebase.js";
 import { useContext } from "react";
 import { AppContext } from "./context/AppContext.jsx";
 import { ToastContainer } from "react-toastify";
+import Filter from "./pages/Filter/Filter.jsx";
 
 const App = () => {
   const navigate = useNavigate();

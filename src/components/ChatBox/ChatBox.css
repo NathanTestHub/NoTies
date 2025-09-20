@@ -81,7 +81,7 @@
 }
 .message {
   color: white;
-  background-color: #077eff;
+  background-color: #54075b;
   padding: 8px;
   max-width: 200px;
   font-size: 11px;
@@ -90,7 +90,7 @@
   margin-bottom: 30px;
 }
 .received-message .message {
-  background-color: #073dff;
+  background-color: #423c0e;
   border-radius: 8px 8px 8px 0px;
 }
 .sent-message div,
@@ -117,7 +117,7 @@
 .chat-welcome p{
   font-size: 20px;
   font-weight: 500;
-  color: #383838;
+  color: #21230d;
 }
 .chat-user .arrow{
   display: none;
