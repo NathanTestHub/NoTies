@@ -10,7 +10,7 @@
 .login .logo{
     width: max(20vw, 200px);
 }  
-.login-form{
+.form-check-form{
     background: white;
     padding: 20px 30px;
     display: flex;
@@ -18,7 +18,7 @@
     gap: 20px;
     border-radius: 10px;
 }
-.sign-up-header{
+.form-check-header{
     font-weight: 500;
 }
 
@@ -28,7 +28,7 @@
     border-radius: 5px;     
     outline-color: #077eff;
 }
-.login-form button{
+.form-check-form button{
     padding: 10px;
     border: none;
     background: #077eff;
@@ -37,7 +37,7 @@
     border-radius: 5px;
     cursor: pointer;
 }
-.login-form button:hover{
+.form-check-form button:hover{
     background: #055ecc;
 }
 .login-term{
