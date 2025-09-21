@@ -1,72 +1,83 @@
-.login{
-    min-height: 100vh;
-    background: url(/background.png) no-repeat;
-    background-size: cover;
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
+/* Container */
+.form-check {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: #f1f5ff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
-.login .logo{
-    width: max(20vw, 200px);
-}  
-.form-check-form{
-    background: white;
-    padding: 20px 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    border-radius: 10px;
-}
-.form-check-header{
-    font-weight: 500;
+/* Input box */
+.post-input {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid #c6c6c6;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  outline: none;
+  background: white;
 }
 
-.input-field{
-    padding: 8px 10px;
-    border: 1px solid #ccc; 
-    border-radius: 5px;     
-    outline-color: #077eff;
+.post-input:focus {
+  border-color: #54075b;
+  box-shadow: 0 0 0 2px rgba(84, 7, 91, 0.2);
 }
-.form-check-form button{
-    padding: 10px;
-    border: none;
-    background: #077eff;
-    color: white;
-    font-weight: 500;
-    border-radius: 5px;
-    cursor: pointer;
+
+/* Post button */
+.post-btn {
+  align-self: flex-end;
+  padding: 8px 18px;
+  background-color: #54075b;
+  color: white;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
-.form-check-form button:hover{
-    background: #055ecc;
+
+.post-btn:hover {
+  background-color: #6e0a79;
 }
-.login-term{
-    display: flex;
-    gap: 5px;
-    font-size: 14px;
-    color: #808080
+
+/* Posts list */
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
 }
-.login-forgot{
-    display: block;
-    gap: 5px;
-    font-size: 14px;
-    color: #808080
+
+/* Each post item */
+.post-item {
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #e1e1e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.login-toggle{
-    display: block;
-    padding: 5px;
-    gap: 5px;
-    font-size: 14px;
-    color: #808080
+
+/* Post text */
+.post-item p {
+  margin: 0;
+  line-height: 1.4;
 }
-.login-toggle span{
-    color: #077eff;
-    cursor: pointer;
-}
-@media (ma-width: 768px) {
-    .login{
-        flex-direction: column;
-        justify-content: center;
-        gap: 30px;
-    }
+
+/* Timestamp */
+.post-item small {
+  font-size: 12px;
+  color: #777;
+  align-self: flex-end;
 }

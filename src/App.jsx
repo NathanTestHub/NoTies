@@ -12,25 +12,31 @@ import FormCheck from "./pages/FormCheck/FormCheck.jsx";
 
 const App = () => {
   const navigate = useNavigate();
-  const {loadUserData} = useContext(AppContext)
+  const { loadUserData } = useContext(AppContext);
 
-  useEffect(() => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        navigate("/chat");
-        await loadUserData(user.uid)
-      } else {
-        navigate("/");
-      }
-    });
-  }, []);
+    useEffect(() => {
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          await loadUserData(user.uid);
+
+          // Only redirect if they're currently on "/" (login page)
+          if (window.location.pathname === "/") {
+            navigate("/chat");
+          }
+        } else {
+          navigate("/");
+        }
+      });
+    }, []);
+
 
   return (
     <>
       <ToastContainer />
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route path="/chat" element={<Chat />} /> {/* General chat */}
+        <Route path="/chat/:postId" element={<Chat />} /> {/* Chat for a post */}
         <Route path="/profile-update" element={<ProfileUpdate />} />
         <Route path="/form-check" element={<FormCheck />} />
       </Routes>
