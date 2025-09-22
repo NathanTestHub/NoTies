@@ -12,19 +12,42 @@ import {
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
 import upload from "../../lib/upload";
+import { useLocation } from "react-router-dom";
 
 const ChatBox = () => {
+  const location = useLocation();
   const {
     userData,
     messagesId,
     chatUser,
+    setChatUser,
     messages,
     setMessages,
     chatVisible,
-    setChatVisible
+    setMessagesId
   } = useContext(AppContext);
 
   const [input, setInput] = useState("");
+
+  // ✅ If coming from FormCheck, set chatUser and messagesId automatically
+  useEffect(() => {
+    const setupChatFromNav = async () => {
+      if (location.state?.userName) {
+        // Find the user by userName in Firestore
+        const qSnap = await getDoc(doc(db, "users", location.state.userId));
+        if (qSnap.exists()) {
+          const uData = qSnap.data();
+          setChatUser({
+            rId: uData.id,
+            messageId: location.state.messageId || null,
+            userData: uData,
+          });
+          if (location.state.messageId) setMessagesId(location.state.messageId);
+        }
+      }
+    };
+    setupChatFromNav();
+  }, [location.state, setChatUser, setMessagesId]);
 
   const sendMessage = async () => {
     try {
@@ -38,11 +61,9 @@ const ChatBox = () => {
         });
 
         const userIDs = [chatUser.rId, userData.id];
-
         userIDs.forEach(async (id) => {
           const userChatsRef = doc(db, "chats", id);
           const userChatsSnapShot = await getDoc(userChatsRef);
-
           if (userChatsSnapShot.exists()) {
             const userChatData = userChatsSnapShot.data();
             const chatIndex = userChatData.chatsData.findIndex(
@@ -68,7 +89,6 @@ const ChatBox = () => {
   const sendImage = async (e) => {
     try {
       const fileUrl = await upload(e.target.files[0]);
-
       if (fileUrl && messagesId) {
         await updateDoc(doc(db, "messages", messagesId), {
           messages: arrayUnion({
@@ -77,12 +97,11 @@ const ChatBox = () => {
             createdAt: new Date(),
           }),
         });
-        const userIDs = [chatUser.rId, userData.id];
 
+        const userIDs = [chatUser.rId, userData.id];
         userIDs.forEach(async (id) => {
           const userChatsRef = doc(db, "chats", id);
           const userChatsSnapShot = await getDoc(userChatsRef);
-
           if (userChatsSnapShot.exists()) {
             const userChatData = userChatsSnapShot.data();
             const chatIndex = userChatData.chatsData.findIndex(
@@ -108,36 +127,35 @@ const ChatBox = () => {
     let date = timestamp.toDate();
     const hour = date.getHours();
     const minute = date.getMinutes().toString().padStart(2, "0");
-    if (hour > 12) {
-      return hour - 12 + ":" + minute + "PM";
-    } else {
-      return hour + ":" + minute + "AM";
-    }
+    return hour > 12 ? `${hour - 12}:${minute}PM` : `${hour}:${minute}AM`;
   };
 
   useEffect(() => {
     if (messagesId) {
       const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
-        setMessages(res.data().messages.reverse());
+        setMessages(res.data()?.messages?.reverse() || []);
       });
-      return () => {
-        unSub();
-      };
+      return () => unSub();
     }
-  }, [messagesId]);
+  }, [messagesId, setMessages]);
 
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
         <img src={chatUser.userData.avatar} alt="" />
         <p>
-          {chatUser ? chatUser.userData.name : "Richard Sanford"}{" "}
-          {Date.now() - chatUser.userData.lastSeen <= 70000 ? (
+          {chatUser.userData.name}{" "}
+          {Date.now() - (chatUser.userData.lastSeen || 0) <= 70000 && (
             <img className="dot" src={assets.green_dot} alt="" />
-          ) : null}
+          )}
         </p>
         <img src={assets.help_icon} className="help" alt="" />
-        <img onClick={()=>setChatVisible(false)} src={assets.arrow_icon} className="arrow" alt="" />
+        <img
+          onClick={() => setChatVisible(false)}
+          src={assets.arrow_icon}
+          className="arrow"
+          alt=""
+        />
       </div>
 
       <div className="chat-messages">
@@ -145,10 +163,12 @@ const ChatBox = () => {
           <div
             key={index}
             className={
-              message.sId === userData.id ? "sent-message" : "received-message"
+              message.sId === userData.id
+                ? "sent-message"
+                : "received-message"
             }
           >
-            {message["image"] ? (
+            {message.image ? (
               <img className="message-image" src={message.image} alt="" />
             ) : (
               <p className="message">{message.text}</p>

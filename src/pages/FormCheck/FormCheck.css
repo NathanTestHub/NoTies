@@ -6,7 +6,7 @@
   background-color: #f1f5ff;
   padding: 20px;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -53,6 +53,9 @@
   flex-direction: column;
   gap: 12px;
   margin-top: 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 /* Each post item */
@@ -66,18 +69,74 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Post header (avatar + username) */
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ccc;
+}
+
+.post-user {
+  font-weight: 600;
+  font-size: 14px;
+  color: #54075b;
 }
 
 /* Post text */
-.post-item p {
+.post-text {
   margin: 0;
   line-height: 1.4;
+  font-size: 14px;
+  color: #333;
+  word-break: break-word;
 }
 
 /* Timestamp */
-.post-item small {
+.post-time {
   font-size: 12px;
   color: #777;
   align-self: flex-end;
+}
+
+/* Chat button */
+.chat-btn {
+  align-self: flex-end;
+  padding: 6px 12px;
+  background-color: #54075b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-top: 6px;
+}
+
+.chat-btn:hover {
+  background-color: #6e0a79;
+}
+
+/* Scrollbar styling for posts list */
+.posts-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.posts-list::-webkit-scrollbar-thumb {
+  background-color: rgba(84, 7, 91, 0.5);
+  border-radius: 3px;
+}
+
+.posts-list::-webkit-scrollbar-track {
+  background-color: transparent;
 }
