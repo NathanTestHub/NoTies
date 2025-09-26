@@ -33,6 +33,7 @@ const LeftSidebar = () => {
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
+  // -------------------- Search Users --------------------
   const inputHandler = async (e) => {
     try {
       const input = e.target.value;
@@ -49,19 +50,18 @@ const LeftSidebar = () => {
             }
           });
 
-          if (!userExist) {
-            // <-- FIXED: show user if NOT already in chatData
-            setUser(querySnap.docs[0].data());
-          } else {
-            setUser(null);
-          }
+          if (!userExist) setUser(querySnap.docs[0].data());
+          else setUser(null);
         } else {
           setUser(null);
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // -------------------- Add Chat --------------------
   const addChat = async () => {
     const messageRef = collection(db, "messages");
     const chatsRef = collection(db, "chats");
@@ -111,6 +111,7 @@ const LeftSidebar = () => {
     }
   };
 
+  // -------------------- Set Chat --------------------
   const setChat = async (item) => {
     try {
       setMessagesId(item.messageId);
@@ -132,6 +133,7 @@ const LeftSidebar = () => {
     }
   };
 
+  // -------------------- Update Chat User Data --------------------
   useEffect(() => {
     const updateChatUserData = async () => {
       if (chatUser) {
@@ -143,6 +145,25 @@ const LeftSidebar = () => {
     };
     updateChatUserData();
   }, [chatData]);
+
+  // -------------------- Generate Chat Link --------------------
+  const generateChatLink = async () => {
+    try {
+      const linkId = crypto.randomUUID(); // unique link ID
+      await setDoc(doc(db, "chatLinks", linkId), {
+        userId: userData.id,
+        createdAt: serverTimestamp(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // optional 24h expiry
+      });
+
+      const link = `${window.location.origin}/chat-link/${linkId}`;
+      navigator.clipboard.writeText(link);
+      toast.success("Chat link copied to clipboard!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate chat link.");
+    }
+  };
 
   return (
     <div className={`left-sidebar ${chatVisible ? "hidden" : ""}`}>
@@ -163,6 +184,7 @@ const LeftSidebar = () => {
           <input onChange={inputHandler} type="text" placeholder="Search..." />
         </div>
       </div>
+
       <div className="left-sidebar-list">
         {showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
@@ -174,10 +196,7 @@ const LeftSidebar = () => {
           </div>
         ) : (
           chatData.map((item, index) => {
-            if (!item.userData) {
-              return null; // skip if no userData yet
-            }
-
+            if (!item.userData) return null;
             return (
               <div
                 onClick={() => setChat(item)}
@@ -200,6 +219,13 @@ const LeftSidebar = () => {
             );
           })
         )}
+      </div>
+
+      {/* -------------------- Generate Chat Link Button -------------------- */}
+      <div className="left-sidebar-bottom">
+        <button className="generate-link-btn" onClick={generateChatLink}>
+          Generate Chat Link
+        </button>
       </div>
     </div>
   );

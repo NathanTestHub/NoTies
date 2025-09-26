@@ -2,23 +2,30 @@
   background: #001030;
   color: white;
   height: 75vh;
+  display: flex;
+  flex-direction: column;
 }
+
 .left-sidebar-top {
   padding: 20px;
 }
+
 .left-sidebar-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .left-sidebar-nav .logo {
   max-width: 140px;
 }
+
 .left-sidebar-nav .menu img {
   max-height: 20px;
   opacity: 0.6;
   cursor: pointer;
 }
+
 .left-sidebar-search {
   background-color: #807a67;
   display: flex;
@@ -26,57 +33,80 @@
   gap: 10px;
   padding: 10px 12px;
   margin-top: 20px;
+  border-radius: 5px;
 }
+
 .left-sidebar-search img {
   width: 16px;
 }
+
 .left-sidebar-search input {
   background: transparent;
   border: none;
   outline: none;
   color: white;
-  font-size: 11px;
+  font-size: 12px;
+  width: 100%;
 }
+
 .left-sidebar-search input::placeholder {
   color: #c8c8c8;
 }
-.left-sidebar-list {
+
+.left-sidebar-list,
+.users {
   display: flex;
   flex-direction: column;
-  height: 70%;
-  overflow-y: scroll;
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 10px;
 }
-.friends img {
+
+.friends img,
+.user img {
   width: 35px;
   aspect-ratio: 1/1;
   border-radius: 50%;
 }
-.friends {
+
+.friends,
+.user {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
   cursor: pointer;
   font-size: 13px;
+  transition: background-color 0.2s;
 }
-.friends div {
+
+.friends div,
+.user div {
   display: flex;
   flex-direction: column;
 }
-.friends span {
+
+.friends span,
+.user span {
   font-size: 11px;
   color: #9f9f9f;
 }
-.friends:hover {
+
+.friends:hover,
+.user:hover {
   background-color: #077eff;
 }
-.friends:hover span {
+
+.friends:hover span,
+.user:hover span {
   color: white;
 }
+
 .left-sidebar-nav .menu {
   position: relative;
   padding: 10px 0px;
 }
+
 .menu .sub-menu {
   position: absolute;
   top: 100%;
@@ -87,13 +117,16 @@
   background-color: white;
   color: black;
   display: none;
+  z-index: 10;
 }
+
 .sub-menu hr {
   border: none;
   height: 1px;
   background: #a4a4a4;
   margin: 8px 0px;
 }
+
 .sub-menu p {
   font-size: 14px;
   cursor: pointer;
@@ -102,14 +135,45 @@
 .menu:hover .sub-menu {
   display: block;
 }
-.friends.border image{
+
+/* Chat indicator */
+.friends.border img,
+.user.border img {
   border: 3px solid #07fff3;
 }
-.friends.border div span{
+
+.friends.border div span,
+.user.border div span {
   color: #07fff3;
 }
+
+/* -------------------- Generate Chat Link Button -------------------- */
+.left-sidebar-bottom {
+  padding: 15px 20px;
+  border-top: 1px solid #444;
+}
+
+.generate-link-btn {
+  width: 100%;
+  padding: 10px 0;
+  background-color: #077eff; /* matches hover color of friends */
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.generate-link-btn:hover {
+  background-color: #055dc3;
+}
+
+/* Mobile responsiveness */
 @media (max-width: 900px) {
-  .left-sidebar{
+  .left-sidebar {
     width: 100%;
+    height: auto;
   }
 }

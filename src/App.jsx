@@ -9,6 +9,7 @@ import { useContext } from "react";
 import { AppContext } from "./context/AppContext.jsx";
 import { ToastContainer } from "react-toastify";
 import FormCheck from "./pages/FormCheck/FormCheck.jsx";
+import ChatLink from "./lib/ChatLink.jsx";
 
 const App = () => {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const App = () => {
         <Route path="/chat/:postId" element={<Chat />} /> {/* Chat for a post */}
         <Route path="/profile-update" element={<ProfileUpdate />} />
         <Route path="/form-check" element={<FormCheck />} />
+        <Route path="/chat-link/:linkId" element={<ChatLink />} /> {/* Chat via link */}
       </Routes>
     </>
   );

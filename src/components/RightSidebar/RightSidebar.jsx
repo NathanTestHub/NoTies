@@ -51,14 +51,14 @@ const RightSidebar = () => {
 
       {/* Wrap the buttons in a container */}
       <div className="right-sidebar-buttons">
-        <button onClick={handleCreateForm}>Create Form</button>
+        <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
       </div>
     </div>
   ) : (
     <div className="right-sidebar">
       <div className="right-sidebar-buttons">
-        <button onClick={handleCreateForm}>Create Form</button>
+        <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
       </div>
     </div>
