@@ -147,6 +147,29 @@
   color: #07fff3;
 }
 
+/* -------------------- Generate Chat Link Button -------------------- */
+.left-sidebar-bottom {
+  padding: 15px 20px;
+  border-top: 1px solid #444;
+}
+
+.generate-link-btn {
+  width: 100%;
+  padding: 10px 0;
+  background-color: #077eff; /* matches hover color of friends */
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.generate-link-btn:hover {
+  background-color: #055dc3;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 900px) {
   .left-sidebar {

@@ -29,11 +29,10 @@ const ChatBox = () => {
 
   const [input, setInput] = useState("");
 
-  // ✅ If coming from FormCheck, set chatUser and messagesId automatically
+  // ✅ If coming from a link, set chatUser and messagesId automatically
   useEffect(() => {
     const setupChatFromNav = async () => {
-      if (location.state?.userName) {
-        // Find the user by userName in Firestore
+      if (location.state?.userName || location.state?.userId) {
         const qSnap = await getDoc(doc(db, "users", location.state.userId));
         if (qSnap.exists()) {
           const uData = qSnap.data();
@@ -69,14 +68,16 @@ const ChatBox = () => {
             const chatIndex = userChatData.chatsData.findIndex(
               (c) => c.messageId === messagesId
             );
-            userChatData.chatsData[chatIndex].lastMessage = input.slice(0, 30);
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
+            if (chatIndex >= 0) {
+              userChatData.chatsData[chatIndex].lastMessage = input.slice(0, 30);
+              userChatData.chatsData[chatIndex].updatedAt = Date.now();
+              if (userChatData.chatsData[chatIndex].rId === userData.id) {
+                userChatData.chatsData[chatIndex].messageSeen = false;
+              }
+              await updateDoc(userChatsRef, {
+                chatsData: userChatData.chatsData,
+              });
             }
-            await updateDoc(userChatsRef, {
-              chatsData: userChatData.chatsData,
-            });
           }
         });
       }
@@ -107,14 +108,16 @@ const ChatBox = () => {
             const chatIndex = userChatData.chatsData.findIndex(
               (c) => c.messageId === messagesId
             );
-            userChatData.chatsData[chatIndex].lastMessage = "Image";
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
+            if (chatIndex >= 0) {
+              userChatData.chatsData[chatIndex].lastMessage = "Image";
+              userChatData.chatsData[chatIndex].updatedAt = Date.now();
+              if (userChatData.chatsData[chatIndex].rId === userData.id) {
+                userChatData.chatsData[chatIndex].messageSeen = false;
+              }
+              await updateDoc(userChatsRef, {
+                chatsData: userChatData.chatsData,
+              });
             }
-            await updateDoc(userChatsRef, {
-              chatsData: userChatData.chatsData,
-            });
           }
         });
       }
@@ -130,6 +133,7 @@ const ChatBox = () => {
     return hour > 12 ? `${hour - 12}:${minute}PM` : `${hour}:${minute}AM`;
   };
 
+  // Listen for messages
   useEffect(() => {
     if (messagesId) {
       const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
@@ -142,9 +146,13 @@ const ChatBox = () => {
   return chatUser ? (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
-        <img src={chatUser.userData.avatar} alt="" />
+        <img
+          src={chatUser.userData.avatar || assets.defaultAvatar}
+          alt={chatUser.userData.name || "Anonymous"}
+        />
         <p>
-          {chatUser.userData.name}{" "}
+          {chatUser.userData.name || "Anonymous"}{" "}
+          {chatUser.userData.isAnonymous ? "(Anonymous)" : ""}
           {Date.now() - (chatUser.userData.lastSeen || 0) <= 70000 && (
             <img className="dot" src={assets.green_dot} alt="" />
           )}
@@ -177,10 +185,10 @@ const ChatBox = () => {
               <img
                 src={
                   message.sId === userData.id
-                    ? userData.avatar
-                    : chatUser.userData.avatar
+                    ? userData.avatar || assets.defaultAvatar
+                    : chatUser.userData.avatar || assets.defaultAvatar
                 }
-                alt=""
+                alt={chatUser.userData.name || "Anonymous"}
               />
               <p>{convertTimestamp(message.createdAt)}</p>
             </div>
