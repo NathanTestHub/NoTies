@@ -37,18 +37,20 @@ const ChatBox = () => {
   useEffect(() => {
     const setupChatFromNav = async () => {
       try {
-        if (location.state?.userName && location.state?.userId) {
-          const userSnap = await getDoc(doc(db, "users", location.state.userId));
+        const state = location.state;
+        if (state?.userName && state?.userId) {
+          const userSnap = await getDoc(doc(db, "users", state.userId));
           if (userSnap.exists()) {
             const uData = userSnap.data();
             setChatUser({
               rId: uData.id,
-              messageId: location.state.messageId || null,
+              messageId: state.messageId || null,
               userData: uData,
             });
-            if (location.state.messageId) setMessagesId(location.state.messageId);
+            if (state.messageId) setMessagesId(state.messageId);
+            console.log("Chat initialized for:", uData.name || "Anonymous");
           } else {
-            console.warn("User not found:", location.state.userId);
+            console.warn("User not found:", state.userId);
           }
         }
       } catch (err) {
@@ -75,7 +77,7 @@ const ChatBox = () => {
         createdAt: serverTimestamp(),
       });
 
-      console.log("Message added to subcollection:", messagesId);
+      console.log("Text message added to subcollection:", messagesId);
 
       // Update lastMessage in chats for both users
       const userIDs = [chatUser.rId, userData.id];
@@ -180,10 +182,10 @@ const ChatBox = () => {
     return () => unSub();
   }, [messagesId, setMessages]);
 
-  if (!chatUser) {
+  if (!chatUser || !chatUser.userData) {
     return (
       <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
-        <img src={assets.logo_icon} alt="" />
+        <img src={assets.logo_icon || null} alt="Logo" />
         <p>Chat anytime, anywhere</p>
       </div>
     );
@@ -193,48 +195,48 @@ const ChatBox = () => {
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
         <img
-          src={chatUser.userData.avatar || assets.defaultAvatar}
-          alt={chatUser.userData.name || "Anonymous"}
+          src={chatUser?.userData?.avatar || assets.defaultAvatar || null}
+          alt={chatUser?.userData?.name || "Anonymous"}
         />
         <p>
-          {chatUser.userData.name || "Anonymous"}{" "}
-          {chatUser.userData.isAnonymous ? "(Anonymous)" : ""}
-          {Date.now() - (chatUser.userData.lastSeen || 0) <= 70000 && (
+          {chatUser?.userData?.name || "Anonymous"}{" "}
+          {chatUser?.userData?.isAnonymous ? "(Anonymous)" : ""}
+          {Date.now() - (chatUser?.userData?.lastSeen || 0) <= 70000 && (
             <img className="dot" src={assets.green_dot} alt="" />
           )}
         </p>
-        <img src={assets.help_icon} className="help" alt="" />
+        <img src={assets.help_icon || null} className="help" alt="Help" />
         <img
           onClick={() => setChatVisible(false)}
-          src={assets.arrow_icon}
+          src={assets.arrow_icon || null}
           className="arrow"
-          alt=""
+          alt="Close"
         />
       </div>
 
       <div className="chat-messages">
-        {messages.map((message) => (
+        {messages?.map((message) => (
           <div
             key={message.id}
             className={
-              message.sId === userData.id
+              message.sId === userData?.id
                 ? "sent-message"
                 : "received-message"
             }
           >
             {message.image ? (
-              <img className="message-image" src={message.image} alt="" />
+              <img className="message-image" src={message.image || null} alt="Message" />
             ) : (
               <p className="message">{message.text}</p>
             )}
             <div>
               <img
                 src={
-                  message.sId === userData.id
-                    ? userData.avatar || assets.defaultAvatar
-                    : chatUser.userData.avatar || assets.defaultAvatar
+                  message.sId === userData?.id
+                    ? userData?.avatar || assets.defaultAvatar || null
+                    : chatUser?.userData?.avatar || assets.defaultAvatar || null
                 }
-                alt={chatUser.userData.name || "Anonymous"}
+                alt={chatUser?.userData?.name || "Anonymous"}
               />
               <p>{convertTimestamp(message.createdAt)}</p>
             </div>
@@ -257,9 +259,9 @@ const ChatBox = () => {
           hidden
         />
         <label htmlFor="image">
-          <img src={assets.gallery_icon} alt="" />
+          <img src={assets.gallery_icon || null} alt="Upload" />
         </label>
-        <img onClick={sendMessage} src={assets.send_button} alt="" />
+        <img onClick={sendMessage} src={assets.send_button || null} alt="Send" />
       </div>
     </div>
   );

@@ -30,71 +30,86 @@ const LeftSidebar = () => {
     chatVisible,
     setChatVisible,
   } = useContext(AppContext);
+
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
   // -------------------- Search Users --------------------
   const inputHandler = async (e) => {
     try {
-      const input = e.target.value;
-      if (input) {
-        setShowSearch(true);
-        const userRef = collection(db, "users");
-        const q = query(userRef, where("username", "==", input.toLowerCase()));
-        const querySnap = await getDocs(q);
-        if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
-          let userExist = false;
-          chatData.forEach((user) => {
-            if (user.rId === querySnap.docs[0].data().id) {
-              userExist = true;
-            }
-          });
+      const input = e.target.value?.trim();
+      if (!input) {
+        setShowSearch(false);
+        setUser(null);
+        return;
+      }
 
-          if (!userExist) setUser(querySnap.docs[0].data());
+      setShowSearch(true);
+      const userRef = collection(db, "users");
+      const q = query(userRef, where("username", "==", input.toLowerCase()));
+      const querySnap = await getDocs(q);
+
+      if (!querySnap.empty) {
+        const foundUser = querySnap.docs[0].data();
+        if (foundUser.id !== userData?.id) {
+          // Prevent adding duplicate chats
+          const exists = chatData.some((c) => c.rId === foundUser.id);
+          if (!exists) setUser(foundUser);
           else setUser(null);
         } else {
           setUser(null);
         }
+      } else {
+        setUser(null);
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error("Search failed:", err);
     }
   };
 
   // -------------------- Add Chat --------------------
   const addChat = async () => {
-    const messageRef = collection(db, "messages");
-    const chatsRef = collection(db, "chats");
-    try {
-      const newMessageRef = doc(messageRef);
+    if (!user?.id) {
+      toast.error("No user selected.");
+      return;
+    }
 
+    try {
+      const newMessageRef = doc(collection(db, "messages"));
       await setDoc(newMessageRef, {
-        createAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
         messages: [],
       });
 
-      await updateDoc(doc(chatsRef, user.id), {
-        chatsData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: userData.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
+      // Update other user's chat
+      if (user?.id) {
+        await updateDoc(doc(db, "chats", user.id), {
+          chatsData: arrayUnion({
+            messageId: newMessageRef.id,
+            lastMessage: "",
+            rId: userData?.id,
+            updatedAt: Date.now(),
+            messageSeen: true,
+          }),
+        });
+      }
 
-      await updateDoc(doc(chatsRef, userData.id), {
-        chatsData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: user.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
+      // Update current user's chat
+      if (userData?.id) {
+        await updateDoc(doc(db, "chats", userData.id), {
+          chatsData: arrayUnion({
+            messageId: newMessageRef.id,
+            lastMessage: "",
+            rId: user.id,
+            updatedAt: Date.now(),
+            messageSeen: true,
+          }),
+        });
+      }
 
+      // Set chat in context
       const uSnap = await getDoc(doc(db, "users", user.id));
-      const uData = uSnap.data();
+      const uData = uSnap.exists() ? uSnap.data() : {};
       setChat({
         messagesId: newMessageRef.id,
         lastMessage: "",
@@ -103,75 +118,100 @@ const LeftSidebar = () => {
         messageSeen: true,
         userData: uData,
       });
+
       setShowSearch(false);
       setChatVisible(true);
-    } catch (error) {
-      toast.error(error.message);
-      console.error(error);
+    } catch (err) {
+      console.error("Failed to add chat:", err);
+      toast.error(err.message);
     }
   };
 
   // -------------------- Set Chat --------------------
   const setChat = async (item) => {
     try {
+      if (!item?.messageId) return;
+
       setMessagesId(item.messageId);
       setChatUser(item);
+
+      if (!userData?.id) return;
+
       const userChatsRef = doc(db, "chats", userData.id);
       const userChatsSnapshot = await getDoc(userChatsRef);
       const userChatsData = userChatsSnapshot.data();
-      const chatIndex = userChatsData.chatsData.findIndex(
-        (c) => c.messageId === item.messageId
-      );
-      userChatsData.chatsData[chatIndex].messageSeen = true;
-      await updateDoc(userChatsRef, {
-        chatsData: userChatsData.chatsData,
-      });
+
+      if (userChatsData?.chatsData) {
+        const chatIndex = userChatsData.chatsData.findIndex(
+          (c) => c.messageId === item.messageId
+        );
+
+        if (chatIndex >= 0) {
+          userChatsData.chatsData[chatIndex].messageSeen = true;
+          await updateDoc(userChatsRef, {
+            chatsData: userChatsData.chatsData,
+          });
+        }
+      }
 
       setChatVisible(true);
-    } catch (error) {
-      toast.error(error.message);
+    } catch (err) {
+      console.error("Failed to set chat:", err);
+      toast.error(err.message);
     }
   };
 
   // -------------------- Update Chat User Data --------------------
   useEffect(() => {
     const updateChatUserData = async () => {
-      if (chatUser) {
-        const userRef = doc(db, "users", chatUser.userData.id);
-        const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
-        setChatUser((prev) => ({ ...prev, userData: userData }));
+      try {
+        if (chatUser?.userData?.id) {
+          const userRef = doc(db, "users", chatUser.userData.id);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const updatedData = userSnap.data();
+            setChatUser((prev) => ({
+              ...prev,
+              userData: updatedData || prev.userData,
+            }));
+            console.log("Updated chatUser data:", updatedData);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update chatUser data:", err);
       }
     };
     updateChatUserData();
-  }, [chatData]);
+  }, [chatData, chatUser, setChatUser]);
 
   // -------------------- Generate Chat Link --------------------
   const generateChatLink = async () => {
     try {
-      const linkId = crypto.randomUUID(); // unique link ID
+      if (!userData?.id) return;
+      const linkId = crypto.randomUUID();
       await setDoc(doc(db, "chatLinks", linkId), {
         userId: userData.id,
         createdAt: serverTimestamp(),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // optional 24h expiry
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
 
       const link = `${window.location.origin}/chat-link/${linkId}`;
       navigator.clipboard.writeText(link);
       toast.success("Chat link copied to clipboard!");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error("Failed to generate chat link:", err);
       toast.error("Failed to generate chat link.");
     }
   };
 
+  // -------------------- Render --------------------
   return (
     <div className={`left-sidebar ${chatVisible ? "hidden" : ""}`}>
       <div className="left-sidebar-top">
         <div className="left-sidebar-nav">
-          <img src={assets.logo} className="logo" alt="" />
+          <img src={assets.logo} className="logo" alt="Logo" />
           <div className="menu">
-            <img src={assets.menu_icon} alt="" />
+            <img src={assets.menu_icon} alt="Menu" />
             <div className="sub-menu">
               <p onClick={() => navigate("/profile-update")}>Edit Profile</p>
               <hr />
@@ -180,7 +220,7 @@ const LeftSidebar = () => {
           </div>
         </div>
         <div className="left-sidebar-search">
-          <img src={assets.search_icon} alt="" />
+          <img src={assets.search_icon} alt="Search" />
           <input onChange={inputHandler} type="text" placeholder="Search..." />
         </div>
       </div>
@@ -188,23 +228,18 @@ const LeftSidebar = () => {
       <div className="left-sidebar-list">
         {showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
-            <img
-              src={user.avatar || assets.defaultAvatar}
-              alt={user.name || "User"}
-            />
+            <img src={user.avatar || assets.defaultAvatar} alt={user.name || "User"} />
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          chatData.map((item, index) => {
-            if (!item.userData) return null;
+          chatData?.map((item, index) => {
+            if (!item?.userData) return null;
             return (
               <div
                 onClick={() => setChat(item)}
                 key={index}
                 className={`friends ${
-                  item.messageSeen || item.messageId === messagesId
-                    ? ""
-                    : "border"
+                  item.messageSeen || item.messageId === messagesId ? "" : "border"
                 }`}
               >
                 <img
@@ -221,7 +256,6 @@ const LeftSidebar = () => {
         )}
       </div>
 
-      {/* -------------------- Generate Chat Link Button -------------------- */}
       <div className="left-sidebar-bottom">
         <button className="generate-link-btn" onClick={generateChatLink}>
           Generate Chat Link
