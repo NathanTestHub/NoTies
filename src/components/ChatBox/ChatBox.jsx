@@ -3,11 +3,15 @@ import "./ChatBox.css";
 import assets from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import {
-  arrayUnion,
   doc,
+  collection,
+  addDoc,
   getDoc,
   onSnapshot,
-  updateDoc,
+  setDoc,
+  serverTimestamp,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
@@ -24,126 +28,168 @@ const ChatBox = () => {
     messages,
     setMessages,
     chatVisible,
-    setMessagesId
+    setMessagesId,
   } = useContext(AppContext);
 
   const [input, setInput] = useState("");
 
-  // ✅ If coming from a link, set chatUser and messagesId automatically
+  // --- Setup chat from navigation state ---
   useEffect(() => {
     const setupChatFromNav = async () => {
-      if (location.state?.userName || location.state?.userId) {
-        const qSnap = await getDoc(doc(db, "users", location.state.userId));
-        if (qSnap.exists()) {
-          const uData = qSnap.data();
-          setChatUser({
-            rId: uData.id,
-            messageId: location.state.messageId || null,
-            userData: uData,
-          });
-          if (location.state.messageId) setMessagesId(location.state.messageId);
+      try {
+        if (location.state?.userName && location.state?.userId) {
+          const userSnap = await getDoc(doc(db, "users", location.state.userId));
+          if (userSnap.exists()) {
+            const uData = userSnap.data();
+            setChatUser({
+              rId: uData.id,
+              messageId: location.state.messageId || null,
+              userData: uData,
+            });
+            if (location.state.messageId) setMessagesId(location.state.messageId);
+          } else {
+            console.warn("User not found:", location.state.userId);
+          }
         }
+      } catch (err) {
+        console.error("Failed to setup chat from nav:", err);
       }
     };
     setupChatFromNav();
   }, [location.state, setChatUser, setMessagesId]);
 
+  // --- Send a text message ---
   const sendMessage = async () => {
-    try {
-      if (input && messagesId) {
-        await updateDoc(doc(db, "messages", messagesId), {
-          messages: arrayUnion({
-            sId: userData.id,
-            text: input,
-            createdAt: new Date(),
-          }),
-        });
-
-        const userIDs = [chatUser.rId, userData.id];
-        userIDs.forEach(async (id) => {
-          const userChatsRef = doc(db, "chats", id);
-          const userChatsSnapShot = await getDoc(userChatsRef);
-          if (userChatsSnapShot.exists()) {
-            const userChatData = userChatsSnapShot.data();
-            const chatIndex = userChatData.chatsData.findIndex(
-              (c) => c.messageId === messagesId
-            );
-            if (chatIndex >= 0) {
-              userChatData.chatsData[chatIndex].lastMessage = input.slice(0, 30);
-              userChatData.chatsData[chatIndex].updatedAt = Date.now();
-              if (userChatData.chatsData[chatIndex].rId === userData.id) {
-                userChatData.chatsData[chatIndex].messageSeen = false;
-              }
-              await updateDoc(userChatsRef, {
-                chatsData: userChatData.chatsData,
-              });
-            }
-          }
-        });
-      }
-    } catch (error) {
-      toast.error(error.message);
+    if (!input.trim()) return;
+    if (!userData?.id || !messagesId || !chatUser?.rId) {
+      toast.error("Missing chat or user info.");
+      return;
     }
+
+    try {
+      const msgCol = collection(db, "messages", messagesId, "messages");
+
+      await addDoc(msgCol, {
+        sId: userData.id,
+        text: input.trim(),
+        createdAt: serverTimestamp(),
+      });
+
+      console.log("Message added to subcollection:", messagesId);
+
+      // Update lastMessage in chats for both users
+      const userIDs = [chatUser.rId, userData.id];
+      for (const id of userIDs) {
+        const userChatsRef = doc(db, "chats", id);
+        const userChatsSnap = await getDoc(userChatsRef);
+        if (userChatsSnap.exists()) {
+          const userChatData = userChatsSnap.data();
+          const chatIndex = userChatData.chatsData?.findIndex(
+            (c) => c.messageId === messagesId
+          );
+          if (chatIndex >= 0) {
+            userChatData.chatsData[chatIndex].lastMessage = input.trim().slice(0, 30);
+            userChatData.chatsData[chatIndex].updatedAt = Date.now();
+            if (userChatData.chatsData[chatIndex].rId === userData.id) {
+              userChatData.chatsData[chatIndex].messageSeen = false;
+            }
+            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      toast.error(err.message);
+    }
+
     setInput("");
   };
 
+  // --- Send image ---
   const sendImage = async (e) => {
+    if (!e.target.files[0]) return;
+    if (!userData?.id || !messagesId || !chatUser?.rId) {
+      toast.error("Missing chat or user info.");
+      return;
+    }
+
     try {
       const fileUrl = await upload(e.target.files[0]);
-      if (fileUrl && messagesId) {
-        await updateDoc(doc(db, "messages", messagesId), {
-          messages: arrayUnion({
-            sId: userData.id,
-            image: fileUrl,
-            createdAt: new Date(),
-          }),
-        });
+      if (!fileUrl) throw new Error("Upload failed");
 
-        const userIDs = [chatUser.rId, userData.id];
-        userIDs.forEach(async (id) => {
-          const userChatsRef = doc(db, "chats", id);
-          const userChatsSnapShot = await getDoc(userChatsRef);
-          if (userChatsSnapShot.exists()) {
-            const userChatData = userChatsSnapShot.data();
-            const chatIndex = userChatData.chatsData.findIndex(
-              (c) => c.messageId === messagesId
-            );
-            if (chatIndex >= 0) {
-              userChatData.chatsData[chatIndex].lastMessage = "Image";
-              userChatData.chatsData[chatIndex].updatedAt = Date.now();
-              if (userChatData.chatsData[chatIndex].rId === userData.id) {
-                userChatData.chatsData[chatIndex].messageSeen = false;
-              }
-              await updateDoc(userChatsRef, {
-                chatsData: userChatData.chatsData,
-              });
+      const msgCol = collection(db, "messages", messagesId, "messages");
+
+      await addDoc(msgCol, {
+        sId: userData.id,
+        image: fileUrl,
+        createdAt: serverTimestamp(),
+      });
+
+      console.log("Image added to subcollection:", messagesId);
+
+      const userIDs = [chatUser.rId, userData.id];
+      for (const id of userIDs) {
+        const userChatsRef = doc(db, "chats", id);
+        const userChatsSnap = await getDoc(userChatsRef);
+        if (userChatsSnap.exists()) {
+          const userChatData = userChatsSnap.data();
+          const chatIndex = userChatData.chatsData?.findIndex(
+            (c) => c.messageId === messagesId
+          );
+          if (chatIndex >= 0) {
+            userChatData.chatsData[chatIndex].lastMessage = "Image";
+            userChatData.chatsData[chatIndex].updatedAt = Date.now();
+            if (userChatData.chatsData[chatIndex].rId === userData.id) {
+              userChatData.chatsData[chatIndex].messageSeen = false;
             }
+            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
           }
-        });
+        }
       }
-    } catch (error) {
-      toast.error(error.message);
+    } catch (err) {
+      console.error("Failed to send image:", err);
+      toast.error(err.message);
     }
   };
 
+  // --- Convert timestamp ---
   const convertTimestamp = (timestamp) => {
-    let date = timestamp.toDate();
+    if (!timestamp?.toDate) return "";
+    const date = timestamp.toDate();
     const hour = date.getHours();
     const minute = date.getMinutes().toString().padStart(2, "0");
-    return hour > 12 ? `${hour - 12}:${minute}PM` : `${hour}:${minute}AM`;
+    return hour >= 12
+      ? `${hour > 12 ? hour - 12 : 12}:${minute} PM`
+      : `${hour}:${minute} AM`;
   };
 
-  // Listen for messages
+  // --- Listen for messages in subcollection ---
   useEffect(() => {
-    if (messagesId) {
-      const unSub = onSnapshot(doc(db, "messages", messagesId), (res) => {
-        setMessages(res.data()?.messages?.reverse() || []);
-      });
-      return () => unSub();
-    }
+    if (!messagesId) return;
+
+    const q = query(
+      collection(db, "messages", messagesId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+
+    const unSub = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setMessages(msgs);
+    });
+
+    return () => unSub();
   }, [messagesId, setMessages]);
 
-  return chatUser ? (
+  if (!chatUser) {
+    return (
+      <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
+        <img src={assets.logo_icon} alt="" />
+        <p>Chat anytime, anywhere</p>
+      </div>
+    );
+  }
+
+  return (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
         <img
@@ -167,9 +213,9 @@ const ChatBox = () => {
       </div>
 
       <div className="chat-messages">
-        {messages.map((message, index) => (
+        {messages.map((message) => (
           <div
-            key={index}
+            key={message.id}
             className={
               message.sId === userData.id
                 ? "sent-message"
@@ -215,11 +261,6 @@ const ChatBox = () => {
         </label>
         <img onClick={sendMessage} src={assets.send_button} alt="" />
       </div>
-    </div>
-  ) : (
-    <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
-      <img src={assets.logo_icon} alt="" />
-      <p>Chat anytime, anywhere</p>
     </div>
   );
 };

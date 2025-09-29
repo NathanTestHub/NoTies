@@ -11,7 +11,6 @@ import {
   doc,
   setDoc,
   getDoc,
-  deleteDoc,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +22,7 @@ const FormCheck = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
+  // --- Add a post ---
   const handlePost = async () => {
     if (!input.trim()) {
       toast.error("Please type something before posting!");
@@ -31,12 +31,11 @@ const FormCheck = () => {
 
     try {
       await addDoc(collection(db, "posts"), {
-        text: input,
+        text: input.trim(),
         createdAt: serverTimestamp(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
       });
-
       toast.success("Post added!");
       setInput("");
     } catch (error) {
@@ -45,6 +44,7 @@ const FormCheck = () => {
     }
   };
 
+  // --- Delete post ---
   const handleDelete = async (postId, postOwner) => {
     if (currentUser?.uid !== postOwner) {
       toast.error("You can only delete your own posts!");
@@ -52,7 +52,7 @@ const FormCheck = () => {
     }
 
     try {
-      await deleteDoc(doc(db, "posts", postId));
+      await setDoc(doc(db, "posts", postId), { deleted: true }, { merge: true });
       toast.success("Post deleted!");
     } catch (error) {
       console.error("Error deleting post:", error);
@@ -60,49 +60,81 @@ const FormCheck = () => {
     }
   };
 
+  // --- Fetch posts in real-time ---
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newPosts = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const newPosts = snapshot.docs
+        .filter((doc) => !doc.data()?.deleted)
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
       setPosts(newPosts);
     });
 
     return () => unsubscribe();
   }, []);
 
+  // --- Handle chat initiation ---
   const handleChat = async (post) => {
     try {
       const user1 = currentUser?.uid;
       const user2 = post.userId;
-
       if (!user1 || !user2) {
         toast.error("Missing user info.");
         return;
       }
 
-      const chatId =
-        user1 < user2 ? `${user1}_${user2}` : `${user2}_${user1}`;
-
-      const chatRef = doc(db, "chats", chatId);
+      const chatId = user1 < user2 ? `${user1}_${user2}` : `${user2}_${user1}`;
+      const chatRef = doc(db, "messages", chatId);
       const chatSnap = await getDoc(chatRef);
 
+      // Create the messages document if it doesn't exist
       if (!chatSnap.exists()) {
         await setDoc(chatRef, {
           participants: [user1, user2],
           createdAt: serverTimestamp(),
-          lastMessage: "Hey, let's talk about your post.",
+          lastMessage: "Hey, let's chat!",
         });
 
-        await addDoc(collection(chatRef, "messages"), {
-          text: "Hey, let's talk about your post.",
-          sender: user1,
+        // Initialize empty subcollection
+        const initialMessage = collection(chatRef, "messages");
+        await addDoc(initialMessage, {
+          sId: user1,
+          text: "Hey, let's chat!",
           createdAt: serverTimestamp(),
         });
+
+        // Add this chat to both users' chat lists
+        for (const uid of [user1, user2]) {
+          const userChatsRef = doc(db, "chats", uid);
+          const userChatsSnap = await getDoc(userChatsRef);
+          const chatData = {
+            messageId: chatId,
+            rId: uid === user1 ? user2 : user1,
+            lastMessage: "Hey, let's chat!",
+            updatedAt: Date.now(),
+            messageSeen: uid === user1 ? true : false,
+          };
+
+          if (userChatsSnap.exists()) {
+            const userChatData = userChatsSnap.data();
+            const exists = userChatData.chatsData?.some((c) => c.messageId === chatId);
+            if (!exists) {
+              await setDoc(
+                userChatsRef,
+                { chatsData: [...(userChatData.chatsData || []), chatData] },
+                { merge: true }
+              );
+            }
+          } else {
+            await setDoc(userChatsRef, { chatsData: [chatData] }, { merge: true });
+          }
+        }
       }
 
+      // Navigate to chat box
       navigate(`/chat/${chatId}`, {
         state: {
           userId: post.userId,
@@ -111,7 +143,7 @@ const FormCheck = () => {
         },
       });
     } catch (error) {
-      console.error("Error handling chat:", error);
+      console.error("Error initiating chat:", error);
       toast.error(error.message);
     }
   };
