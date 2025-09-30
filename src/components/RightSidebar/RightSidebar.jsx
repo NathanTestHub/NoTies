@@ -4,6 +4,7 @@ import assets from "../../assets/assets";
 import { logout } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
+import { stringToColor } from "../../utils/colors"; // <-- import
 
 const RightSidebar = () => {
   const { chatUser, messages } = useContext(AppContext);
@@ -13,8 +14,7 @@ const RightSidebar = () => {
   // Extract only messages with images
   useEffect(() => {
     const tempVar =
-      messages?.filter((message) => message?.image)?.map((m) => m.image) ||
-      [];
+      messages?.filter((message) => message?.image)?.map((m) => m.image) || [];
     setMessageImages(tempVar);
   }, [messages]);
 
@@ -26,7 +26,9 @@ const RightSidebar = () => {
   const name = chatUser?.userData?.name || "Anonymous";
   const lastSeen = chatUser?.userData?.lastSeen || 0;
   const bio = chatUser?.userData?.bio || "";
-  const color = chatUser?.userData?.color || "#4CAF50";
+  const color = chatUser?.userData?.id
+    ? stringToColor(chatUser.userData.id)
+    : "#4CAF50"; // fallback
 
   return (
     <div className="right-sidebar">

@@ -17,6 +17,7 @@ import {
 import { db } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
+import { stringToColor } from "../../utils/colors"; // <-- import
 
 const LeftSidebar = () => {
   const navigate = useNavigate();
@@ -225,7 +226,7 @@ const LeftSidebar = () => {
           <div onClick={addChat} className="friends add-user">
             <div
               className="avatar-circle"
-              style={{ backgroundColor: user.color || "#4CAF50" }}
+              style={{ backgroundColor: stringToColor(user.id) }}
             >
               {user.name ? user.name.charAt(0).toUpperCase() : "U"}
             </div>
@@ -245,7 +246,7 @@ const LeftSidebar = () => {
                 <div
                   className="avatar-circle"
                   style={{
-                    backgroundColor: item.userData.color || "#2196F3",
+                    backgroundColor: stringToColor(item.userData.id),
                   }}
                 >
                   {item.userData.name

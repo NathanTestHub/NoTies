@@ -17,6 +17,7 @@ import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
 import upload from "../../lib/upload";
 import { useLocation } from "react-router-dom";
+import { stringToColor } from "../../utils/colors"; // <-- added
 
 const ChatBox = () => {
   const location = useLocation();
@@ -77,8 +78,6 @@ const ChatBox = () => {
         createdAt: serverTimestamp(),
       });
 
-      console.log("Text message added to subcollection:", messagesId);
-
       const userIDs = [chatUser.rId, userData.id];
       for (const id of userIDs) {
         const userChatsRef = doc(db, "chats", id);
@@ -131,8 +130,6 @@ const ChatBox = () => {
         image: fileUrl,
         createdAt: serverTimestamp(),
       });
-
-      console.log("Image added to subcollection:", messagesId);
 
       const userIDs = [chatUser.rId, userData.id];
       for (const id of userIDs) {
@@ -207,12 +204,10 @@ const ChatBox = () => {
         <div
           className="avatar-circle"
           style={{
-            backgroundColor: chatUser?.userData?.color || "#4CAF50",
+            backgroundColor: stringToColor(chatUser?.userData?.id),
           }}
         >
-          {chatUser?.userData?.name
-            ? chatUser.userData.name.charAt(0).toUpperCase()
-            : "A"}
+          {chatUser?.userData?.name?.charAt(0).toUpperCase() || "A"}
         </div>
 
         <p>
@@ -257,8 +252,8 @@ const ChatBox = () => {
                 style={{
                   backgroundColor:
                     message.sId === userData?.id
-                      ? userData?.color || "#4CAF50"
-                      : chatUser?.userData?.color || "#2196F3",
+                      ? stringToColor(userData?.id)
+                      : stringToColor(chatUser?.userData?.id),
                 }}
               >
                 {message.sId === userData?.id
