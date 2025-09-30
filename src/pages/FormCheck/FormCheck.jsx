@@ -11,6 +11,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -30,12 +31,24 @@ const FormCheck = () => {
     }
 
     try {
-      await addDoc(collection(db, "posts"), {
+      const postsCollection = collection(db, "posts");
+
+      // Get the highest existing postNumber
+      const q = query(postsCollection, orderBy("postNumber", "desc"));
+      const snapshot = await getDocs(q);
+      let nextPostNumber = 1; // default for first post
+      if (!snapshot.empty) {
+        nextPostNumber = snapshot.docs[0].data().postNumber + 1;
+      }
+
+      await addDoc(postsCollection, {
         text: input.trim(),
         createdAt: serverTimestamp(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
+        postNumber: nextPostNumber,
       });
+
       toast.success("Post added!");
       setInput("");
     } catch (error) {
@@ -62,7 +75,7 @@ const FormCheck = () => {
 
   // --- Fetch posts in real-time ---
   useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "posts"), orderBy("postNumber", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newPosts = snapshot.docs
         .filter((doc) => !doc.data()?.deleted)
@@ -163,7 +176,9 @@ const FormCheck = () => {
       <div className="posts-list">
         {posts.map((post) => (
           <div key={post.id} className="post-item">
-            <strong>{post.userName}</strong>
+            <strong>
+              Post #{post.postNumber} - {post.userName}
+            </strong>
             <p>{post.text}</p>
             <small>
               {post.createdAt?.toDate
