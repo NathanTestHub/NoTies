@@ -52,7 +52,6 @@ const LeftSidebar = () => {
       if (!querySnap.empty) {
         const foundUser = querySnap.docs[0].data();
         if (foundUser.id !== userData?.id) {
-          // Prevent adding duplicate chats
           const exists = chatData.some((c) => c.rId === foundUser.id);
           if (!exists) setUser(foundUser);
           else setUser(null);
@@ -81,7 +80,6 @@ const LeftSidebar = () => {
         messages: [],
       });
 
-      // Update other user's chat
       if (user?.id) {
         await updateDoc(doc(db, "chats", user.id), {
           chatsData: arrayUnion({
@@ -94,7 +92,6 @@ const LeftSidebar = () => {
         });
       }
 
-      // Update current user's chat
       if (userData?.id) {
         await updateDoc(doc(db, "chats", userData.id), {
           chatsData: arrayUnion({
@@ -107,7 +104,6 @@ const LeftSidebar = () => {
         });
       }
 
-      // Set chat in context
       const uSnap = await getDoc(doc(db, "users", user.id));
       const uData = uSnap.exists() ? uSnap.data() : {};
       setChat({
@@ -174,7 +170,6 @@ const LeftSidebar = () => {
               ...prev,
               userData: updatedData || prev.userData,
             }));
-            console.log("Updated chatUser data:", updatedData);
           }
         }
       } catch (err) {
@@ -228,7 +223,12 @@ const LeftSidebar = () => {
       <div className="left-sidebar-list">
         {showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
-            <img src={user.avatar || assets.defaultAvatar} alt={user.name || "User"} />
+            <div
+              className="avatar-circle"
+              style={{ backgroundColor: user.color || "#4CAF50" }}
+            >
+              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+            </div>
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
@@ -242,10 +242,16 @@ const LeftSidebar = () => {
                   item.messageSeen || item.messageId === messagesId ? "" : "border"
                 }`}
               >
-                <img
-                  src={item.userData.avatar || assets.defaultAvatar}
-                  alt={item.userData.name || "Unknown User"}
-                />
+                <div
+                  className="avatar-circle"
+                  style={{
+                    backgroundColor: item.userData.color || "#2196F3",
+                  }}
+                >
+                  {item.userData.name
+                    ? item.userData.name.charAt(0).toUpperCase()
+                    : "U"}
+                </div>
                 <div>
                   <p>{item.userData.name || "Unknown User"}</p>
                   <span>{item.lastMessage || ""}</span>

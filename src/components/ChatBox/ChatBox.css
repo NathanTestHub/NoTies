@@ -122,6 +122,18 @@
 .chat-user .arrow{
   display: none;
 }
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 16px;
+}
+
 @media (max-width:900px) {
     .chat-box{
         width: 100%;

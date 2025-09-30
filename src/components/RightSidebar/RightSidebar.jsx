@@ -12,7 +12,9 @@ const RightSidebar = () => {
 
   // Extract only messages with images
   useEffect(() => {
-    const tempVar = messages?.filter((message) => message?.image)?.map((m) => m.image) || [];
+    const tempVar =
+      messages?.filter((message) => message?.image)?.map((m) => m.image) ||
+      [];
     setMessageImages(tempVar);
   }, [messages]);
 
@@ -21,17 +23,23 @@ const RightSidebar = () => {
   };
 
   // Safe rendering: check if chatUser and chatUser.userData exist
-  const avatar = chatUser?.userData?.avatar || assets.defaultAvatar || null;
   const name = chatUser?.userData?.name || "Anonymous";
   const lastSeen = chatUser?.userData?.lastSeen || 0;
   const bio = chatUser?.userData?.bio || "";
+  const color = chatUser?.userData?.color || "#4CAF50";
 
   return (
     <div className="right-sidebar">
       {chatUser?.userData ? (
         <>
           <div className="right-sidebar-profile">
-            <img src={avatar} alt={name} />
+            {/* Colored circle avatar */}
+            <div
+              className="avatar-circle-right"
+              style={{ backgroundColor: color }}
+            >
+              {name.charAt(0).toUpperCase()}
+            </div>
             <h3>
               {Date.now() - lastSeen <= 70000 && (
                 <img src={assets.green_dot} className="dot" alt="Online" />

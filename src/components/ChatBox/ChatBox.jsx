@@ -79,7 +79,6 @@ const ChatBox = () => {
 
       console.log("Text message added to subcollection:", messagesId);
 
-      // Update lastMessage in chats for both users
       const userIDs = [chatUser.rId, userData.id];
       for (const id of userIDs) {
         const userChatsRef = doc(db, "chats", id);
@@ -90,12 +89,18 @@ const ChatBox = () => {
             (c) => c.messageId === messagesId
           );
           if (chatIndex >= 0) {
-            userChatData.chatsData[chatIndex].lastMessage = input.trim().slice(0, 30);
+            userChatData.chatsData[chatIndex].lastMessage = input
+              .trim()
+              .slice(0, 30);
             userChatData.chatsData[chatIndex].updatedAt = Date.now();
             if (userChatData.chatsData[chatIndex].rId === userData.id) {
               userChatData.chatsData[chatIndex].messageSeen = false;
             }
-            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
+            await setDoc(
+              userChatsRef,
+              { chatsData: userChatData.chatsData },
+              { merge: true }
+            );
           }
         }
       }
@@ -144,7 +149,11 @@ const ChatBox = () => {
             if (userChatData.chatsData[chatIndex].rId === userData.id) {
               userChatData.chatsData[chatIndex].messageSeen = false;
             }
-            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
+            await setDoc(
+              userChatsRef,
+              { chatsData: userChatData.chatsData },
+              { merge: true }
+            );
           }
         }
       }
@@ -194,10 +203,18 @@ const ChatBox = () => {
   return (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
-        <img
-          src={chatUser?.userData?.avatar || assets.defaultAvatar || null}
-          alt={chatUser?.userData?.name || "Anonymous"}
-        />
+        {/* Colored Circle Avatar */}
+        <div
+          className="avatar-circle"
+          style={{
+            backgroundColor: chatUser?.userData?.color || "#4CAF50",
+          }}
+        >
+          {chatUser?.userData?.name
+            ? chatUser.userData.name.charAt(0).toUpperCase()
+            : "A"}
+        </div>
+
         <p>
           {chatUser?.userData?.name || "Anonymous"}{" "}
           {chatUser?.userData?.isAnonymous ? "(Anonymous)" : ""}
@@ -225,19 +242,29 @@ const ChatBox = () => {
             }
           >
             {message.image ? (
-              <img className="message-image" src={message.image || null} alt="Message" />
+              <img
+                className="message-image"
+                src={message.image || null}
+                alt="Message"
+              />
             ) : (
               <p className="message">{message.text}</p>
             )}
             <div>
-              <img
-                src={
-                  message.sId === userData?.id
-                    ? userData?.avatar || assets.defaultAvatar || null
-                    : chatUser?.userData?.avatar || assets.defaultAvatar || null
-                }
-                alt={chatUser?.userData?.name || "Anonymous"}
-              />
+              {/* Colored Circle Avatar for message */}
+              <div
+                className="avatar-circle"
+                style={{
+                  backgroundColor:
+                    message.sId === userData?.id
+                      ? userData?.color || "#4CAF50"
+                      : chatUser?.userData?.color || "#2196F3",
+                }}
+              >
+                {message.sId === userData?.id
+                  ? userData?.name?.charAt(0).toUpperCase() || "U"
+                  : chatUser?.userData?.name?.charAt(0).toUpperCase() || "A"}
+              </div>
               <p>{convertTimestamp(message.createdAt)}</p>
             </div>
           </div>
