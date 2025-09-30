@@ -20,6 +20,7 @@ import { useAuth } from "../../context/AuthContext";
 const FormCheck = () => {
   const [input, setInput] = useState("");
   const [posts, setPosts] = useState([]);
+  const [search, setSearch] = useState(""); // <-- search state
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
@@ -103,7 +104,6 @@ const FormCheck = () => {
       const chatRef = doc(db, "messages", chatId);
       const chatSnap = await getDoc(chatRef);
 
-      // Create the messages document if it doesn't exist
       if (!chatSnap.exists()) {
         await setDoc(chatRef, {
           participants: [user1, user2],
@@ -111,7 +111,6 @@ const FormCheck = () => {
           lastMessage: "Hey, let's chat!",
         });
 
-        // Initialize empty subcollection
         const initialMessage = collection(chatRef, "messages");
         await addDoc(initialMessage, {
           sId: user1,
@@ -119,7 +118,6 @@ const FormCheck = () => {
           createdAt: serverTimestamp(),
         });
 
-        // Add this chat to both users' chat lists
         for (const uid of [user1, user2]) {
           const userChatsRef = doc(db, "chats", uid);
           const userChatsSnap = await getDoc(userChatsRef);
@@ -147,7 +145,6 @@ const FormCheck = () => {
         }
       }
 
-      // Navigate to chat box
       navigate(`/chat/${chatId}`, {
         state: {
           userId: post.userId,
@@ -161,8 +158,33 @@ const FormCheck = () => {
     }
   };
 
+  // --- Filtered posts based on search by number or text/username ---
+  const filteredPosts = posts.filter((post) => {
+    if (!search.trim()) return true; // show all if search is empty
+
+    const searchLower = search.toLowerCase();
+    const searchNumber = parseInt(search, 10);
+
+    return (
+      post.postNumber === searchNumber || // match post number
+      post.text.toLowerCase().includes(searchLower) || // match text
+      post.userName.toLowerCase().includes(searchLower) // match username
+    );
+  });
+
   return (
     <div className="form-check">
+      {/* Search input */}
+      <input
+        type="text"
+        placeholder="Search by post number, text, or username..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="search-input"
+        style={{ marginBottom: "10px", padding: "8px", width: "100%" }}
+      />
+
+      {/* New post textarea */}
       <textarea
         className="post-input"
         value={input}
@@ -173,8 +195,9 @@ const FormCheck = () => {
         Post
       </button>
 
+      {/* Posts list */}
       <div className="posts-list">
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <div key={post.id} className="post-item">
             <strong>
               Post #{post.postNumber} - {post.userName}
@@ -205,6 +228,7 @@ const FormCheck = () => {
             </div>
           </div>
         ))}
+        {filteredPosts.length === 0 && <p>No posts found.</p>}
       </div>
     </div>
   );

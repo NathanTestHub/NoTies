@@ -5,14 +5,32 @@
   margin: 0 auto;
   background-color: #f1f5ff;
   padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   gap: 15px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Input box */
+/* Search input */
+.search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #c6c6c6;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  background-color: white;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: #54075b;
+  box-shadow: 0 0 0 2px rgba(84, 7, 91, 0.2);
+}
+
+/* Post input box */
 .post-input {
   width: 100%;
   min-height: 80px;
@@ -23,6 +41,7 @@
   resize: vertical;
   outline: none;
   background: white;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
 .post-input:focus {
@@ -40,11 +59,12 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .post-btn:hover {
   background-color: #6e0a79;
+  transform: translateY(-1px);
 }
 
 /* Posts list */
@@ -60,16 +80,22 @@
 
 /* Each post item */
 .post-item {
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: white;
   border: 1px solid #e1e1e1;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   color: #333;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  gap: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.post-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Post header (avatar + username) */
@@ -96,7 +122,7 @@
 /* Post text */
 .post-text {
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.5;
   font-size: 14px;
   color: #333;
   word-break: break-word;
@@ -112,19 +138,38 @@
 /* Chat button */
 .chat-btn {
   align-self: flex-end;
-  padding: 6px 12px;
+  padding: 6px 14px;
   background-color: #54075b;
   color: white;
   border: none;
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.1s ease;
   margin-top: 6px;
 }
 
 .chat-btn:hover {
   background-color: #6e0a79;
+  transform: translateY(-1px);
+}
+
+/* Delete button */
+.delete-btn {
+  align-self: flex-end;
+  padding: 6px 14px;
+  background-color: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.delete-btn:hover {
+  background-color: #c9302c;
+  transform: translateY(-1px);
 }
 
 /* Scrollbar styling for posts list */
