@@ -4,120 +4,123 @@ import { db } from "../../config/firebase";
 import {
   collection,
   addDoc,
-  serverTimestamp,
-  onSnapshot,
+  getDocs,
   query,
   orderBy,
   doc,
   setDoc,
   getDoc,
-  getDocs,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+const anonNamesList = [
+  "Red Panda",
+  "Blue Falcon",
+  "Green Turtle",
+  "Yellow Tiger",
+  "Purple Owl",
+  "Silver Fox",
+  "Golden Eagle",
+  "Crimson Wolf",
+  "Azure Dolphin",
+  "Orange Lion",
+];
+
 const FormCheck = () => {
   const [input, setInput] = useState("");
   const [posts, setPosts] = useState([]);
-  const [search, setSearch] = useState(""); // <-- search state
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
+  // Fetch posts in real-time
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const q = query(collection(db, "posts"), orderBy("postNumber", "asc"));
+      const snapshot = await getDocs(q);
+      const newPosts = snapshot.docs
+        .filter((doc) => !doc.data()?.deleted)
+        .map((doc) => ({ id: doc.id, ...doc.data() }));
+      setPosts(newPosts);
+    };
+    fetchPosts();
+  }, []);
+
   // --- Add a post ---
   const handlePost = async () => {
-    if (!input.trim()) {
-      toast.error("Please type something before posting!");
-      return;
-    }
-
+    if (!input.trim()) return toast.error("Type something before posting!");
     try {
       const postsCollection = collection(db, "posts");
-
-      // Get the highest existing postNumber
-      const q = query(postsCollection, orderBy("postNumber", "desc"));
-      const snapshot = await getDocs(q);
-      let nextPostNumber = 1; // default for first post
+      const snapshot = await getDocs(
+        query(postsCollection, orderBy("postNumber", "desc"))
+      );
+      let nextPostNumber = 1;
       if (!snapshot.empty) {
         nextPostNumber = snapshot.docs[0].data().postNumber + 1;
       }
 
       await addDoc(postsCollection, {
         text: input.trim(),
-        createdAt: serverTimestamp(),
+        createdAt: new Date(),
         userId: currentUser.uid,
-        userName: currentUser.displayName || "Anonymous",
         postNumber: nextPostNumber,
       });
 
-      toast.success("Post added!");
       setInput("");
-    } catch (error) {
-      console.error("Error posting:", error);
-      toast.error(error.message);
+      toast.success("Post added!");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
     }
   };
 
-  // --- Delete post ---
-  const handleDelete = async (postId, postOwner) => {
-    if (currentUser?.uid !== postOwner) {
-      toast.error("You can only delete your own posts!");
-      return;
-    }
-
-    try {
-      await setDoc(doc(db, "posts", postId), { deleted: true }, { merge: true });
-      toast.success("Post deleted!");
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      toast.error(error.message);
-    }
-  };
-
-  // --- Fetch posts in real-time ---
-  useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("postNumber", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newPosts = snapshot.docs
-        .filter((doc) => !doc.data()?.deleted)
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-      setPosts(newPosts);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // --- Handle chat initiation ---
+  // --- Initiate chat with anonymous names ---
   const handleChat = async (post) => {
     try {
-      const user1 = currentUser?.uid;
+      const user1 = currentUser.uid;
       const user2 = post.userId;
-      if (!user1 || !user2) {
-        toast.error("Missing user info.");
-        return;
-      }
+      if (!user1 || !user2) return toast.error("Missing user info");
 
       const chatId = user1 < user2 ? `${user1}_${user2}` : `${user2}_${user1}`;
       const chatRef = doc(db, "messages", chatId);
       const chatSnap = await getDoc(chatRef);
 
+      // Create chat if not exists
       if (!chatSnap.exists()) {
+        // Assign anonymous names
+        const usedNames = [];
+        const getAnonName = () => {
+          const available = anonNamesList.filter((n) => !usedNames.includes(n));
+          const name =
+            available[Math.floor(Math.random() * available.length)] ||
+            `Anon-${Math.floor(Math.random() * 1000)}`;
+          usedNames.push(name);
+          return name;
+        };
+
+        const anonNames = {
+          [user1]: getAnonName(),
+          [user2]: getAnonName(),
+        };
+
+        // Save chat and names
         await setDoc(chatRef, {
           participants: [user1, user2],
-          createdAt: serverTimestamp(),
+          anonNames,
+          createdAt: new Date(),
           lastMessage: "Hey, let's chat!",
         });
 
-        const initialMessage = collection(chatRef, "messages");
-        await addDoc(initialMessage, {
+        const msgCol = collection(chatRef, "messages");
+        await addDoc(msgCol, {
           sId: user1,
           text: "Hey, let's chat!",
-          createdAt: serverTimestamp(),
+          createdAt: new Date(),
         });
 
+        // Update user chat lists
         for (const uid of [user1, user2]) {
           const userChatsRef = doc(db, "chats", uid);
           const userChatsSnap = await getDoc(userChatsRef);
@@ -126,109 +129,76 @@ const FormCheck = () => {
             rId: uid === user1 ? user2 : user1,
             lastMessage: "Hey, let's chat!",
             updatedAt: Date.now(),
-            messageSeen: uid === user1 ? true : false,
+            messageSeen: uid === user1,
           };
-
           if (userChatsSnap.exists()) {
-            const userChatData = userChatsSnap.data();
-            const exists = userChatData.chatsData?.some((c) => c.messageId === chatId);
-            if (!exists) {
-              await setDoc(
-                userChatsRef,
-                { chatsData: [...(userChatData.chatsData || []), chatData] },
-                { merge: true }
-              );
-            }
+            const existing = userChatsSnap.data();
+            await setDoc(
+              userChatsRef,
+              { chatsData: [...(existing.chatsData || []), chatData] },
+              { merge: true }
+            );
           } else {
-            await setDoc(userChatsRef, { chatsData: [chatData] }, { merge: true });
+            await setDoc(userChatsRef, { chatsData: [chatData] });
           }
         }
       }
 
-      navigate(`/chat/${chatId}`, {
-        state: {
-          userId: post.userId,
-          userName: post.userName,
-          messageId: chatId,
-        },
-      });
-    } catch (error) {
-      console.error("Error initiating chat:", error);
-      toast.error(error.message);
+      navigate(`/chat/${chatId}`, { state: { chatId, postUserId: post.userId } });
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
     }
   };
 
-  // --- Filtered posts based on search by number or text/username ---
   const filteredPosts = posts.filter((post) => {
-    if (!search.trim()) return true; // show all if search is empty
-
-    const searchLower = search.toLowerCase();
-    const searchNumber = parseInt(search, 10);
-
+    if (!search.trim()) return true;
+    const s = search.toLowerCase();
+    const n = parseInt(search, 10);
     return (
-      post.postNumber === searchNumber || // match post number
-      post.text.toLowerCase().includes(searchLower) || // match text
-      post.userName.toLowerCase().includes(searchLower) // match username
+      post.postNumber === n ||
+      post.text.toLowerCase().includes(s) ||
+      (post.userName && post.userName.toLowerCase().includes(s))
     );
   });
 
   return (
     <div className="form-check">
-      {/* Search input */}
       <input
         type="text"
         placeholder="Search by post number, text, or username..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="search-input"
-        style={{ marginBottom: "10px", padding: "8px", width: "100%" }}
       />
-
-      {/* New post textarea */}
       <textarea
-        className="post-input"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Type something to post..."
+        className="post-input"
       />
       <button onClick={handlePost} className="post-btn">
         Post
       </button>
 
-      {/* Posts list */}
       <div className="posts-list">
         {filteredPosts.map((post) => (
           <div key={post.id} className="post-item">
             <strong>
-              Post #{post.postNumber} - {post.userName}
+              Post #{post.postNumber} - {post.userName || "Anonymous"}
             </strong>
             <p>{post.text}</p>
-            <small>
-              {post.createdAt?.toDate
-                ? post.createdAt.toDate().toLocaleString()
-                : ""}
-            </small>
+            <small>{post.createdAt?.toDate?.()?.toLocaleString() || ""}</small>
             <div style={{ marginTop: "8px" }}>
               <button
                 onClick={() => handleChat(post)}
                 className="chat-btn"
-                style={{ marginRight: "10px" }}
               >
                 Chat
               </button>
-              {post.userId === currentUser?.uid && (
-                <button
-                  onClick={() => handleDelete(post.id, post.userId)}
-                  className="delete-btn"
-                  style={{ background: "red", color: "white" }}
-                >
-                  Delete
-                </button>
-              )}
             </div>
           </div>
         ))}
-        {filteredPosts.length === 0 && <p>No posts found.</p>}
       </div>
     </div>
   );
