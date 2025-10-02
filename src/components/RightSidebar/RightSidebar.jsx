@@ -4,12 +4,38 @@ import assets from "../../assets/assets";
 import { logout } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
-import { stringToColor } from "../../utils/colors"; // <-- import
+import { stringToColor } from "../../utils/colors";
+import { getOrCreateAnonymousName } from "../../utils/anonNames"; // <-- import
 
 const RightSidebar = () => {
-  const { chatUser, messages } = useContext(AppContext);
+  const { chatUser, messages, userData, messagesId } = useContext(AppContext);
   const [messageImages, setMessageImages] = useState([]);
+  const [anonName, setAnonName] = useState("Anonymous"); // <-- state for anonymous name
   const navigate = useNavigate();
+
+  // --- Fetch anonymous name for current user ---
+  useEffect(() => {
+    if (!messagesId || !chatUser?.rId || !userData?.uid) return;
+
+    let isMounted = true;
+    async function fetchAnonName() {
+      try {
+        const name = await getOrCreateAnonymousName(
+          userData.uid,
+          chatUser.rId,
+          messagesId
+        );
+        if (isMounted) setAnonName(name);
+      } catch (err) {
+        console.error("Failed to get anonymous name:", err);
+      }
+    }
+
+    fetchAnonName();
+    return () => {
+      isMounted = false;
+    };
+  }, [userData?.uid, chatUser?.rId, messagesId]);
 
   // Extract only messages with images
   useEffect(() => {
@@ -32,6 +58,11 @@ const RightSidebar = () => {
 
   return (
     <div className="right-sidebar">
+      {/* Display current user's anonymous name on top */}
+      <div className="right-sidebar-anon-name">
+        <h4>You: {anonName}</h4>
+      </div>
+
       {chatUser?.userData ? (
         <>
           <div className="right-sidebar-profile">
