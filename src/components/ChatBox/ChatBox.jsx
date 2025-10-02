@@ -3,15 +3,12 @@ import "./ChatBox.css";
 import assets from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import {
-  doc,
   collection,
   addDoc,
-  getDoc,
   onSnapshot,
-  setDoc,
-  serverTimestamp,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
@@ -24,13 +21,38 @@ const ChatBox = () => {
     userData,
     messagesId,
     chatUser,
-    setChatUser,
     messages,
     setMessages,
     chatVisible,
   } = useContext(AppContext);
 
   const [input, setInput] = useState("");
+  const [otherAnonName, setOtherAnonName] = useState("Anonymous");
+
+  // --- Fetch anonymous name for the other user ---
+  useEffect(() => {
+    if (!messagesId || !chatUser?.rId) return;
+
+    let isMounted = true;
+    async function fetchAnonName() {
+      try {
+        const name = await getOrCreateAnonymousName(
+          userData.uid,
+          chatUser.rId,
+          messagesId
+        );
+        if (isMounted) setOtherAnonName(name);
+      } catch (err) {
+        console.error("Failed to get anonymous name:", err);
+      }
+    }
+
+    fetchAnonName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userData.uid, chatUser?.rId, messagesId]);
 
   // --- Listen for messages in subcollection ---
   useEffect(() => {
@@ -61,12 +83,11 @@ const ChatBox = () => {
         text: input.trim(),
         createdAt: serverTimestamp(),
       });
+      setInput("");
     } catch (err) {
       console.error(err);
       toast.error(err.message);
     }
-
-    setInput("");
   };
 
   // --- Send image ---
@@ -109,13 +130,6 @@ const ChatBox = () => {
       </div>
     );
   }
-
-  // --- Get anonymous name for the other user ---
-  const otherAnonName = getOrCreateAnonymousName(
-    userData.uid,
-    chatUser.rId,
-    messagesId
-  );
 
   return (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>

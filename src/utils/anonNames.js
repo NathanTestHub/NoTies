@@ -1,8 +1,6 @@
-// Map to store per-chat anonymous names
-// Structure: { chatId: { userId: anonName } }
-const anonNameMap = {};
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "../config/firebase"; // your Firebase config
 
-// List of possible prefixes
 const anonNamesList = [
   "RedPanda",
   "BlueFalcon",
@@ -16,38 +14,35 @@ const anonNamesList = [
   "OrangeLion",
 ];
 
-// Utility function to get or create an anonymous name for a user in a chat
-export function getOrCreateAnonymousName(currentUserId, otherUserId, chatId) {
+export async function getOrCreateAnonymousName(currentUserId, otherUserId, chatId) {
   if (!chatId) return "Anonymous";
 
-  // Initialize chat mapping if not exists
-  if (!anonNameMap[chatId]) {
-    anonNameMap[chatId] = {};
-  }
+  const chatDocRef = doc(db, "anonNames", chatId); // Collection: 'anonNames', Doc: chatId
+  const chatSnap = await getDoc(chatDocRef);
 
-  // If name already exists for this user, return it
-  if (anonNameMap[chatId][otherUserId]) {
-    return anonNameMap[chatId][otherUserId];
-  }
+  let chatData = chatSnap.exists() ? chatSnap.data() : {};
+
+  // If name already exists, return it
+  if (chatData[otherUserId]) return chatData[otherUserId];
 
   // Pick a random prefix
   const prefix =
-    anonNamesList[Math.floor(Math.random() * anonNamesList.length)] ||
-    "Anonymous";
+    anonNamesList[Math.floor(Math.random() * anonNamesList.length)] || "Anonymous";
 
   // Generate random number between 1000–9999
   const randomNum = Math.floor(1000 + Math.random() * 9000);
-
-  const anonName = `${prefix}${randomNum}`;
+  let anonName = `${prefix}${randomNum}`;
 
   // Ensure uniqueness within the same chat
-  const usedNames = Object.values(anonNameMap[chatId]);
-  if (usedNames.includes(anonName)) {
-    // If duplicate, retry
-    return getOrCreateAnonymousName(currentUserId, otherUserId, chatId);
+  const usedNames = Object.values(chatData);
+  while (usedNames.includes(anonName)) {
+    const retryNum = Math.floor(1000 + Math.random() * 9000);
+    anonName = `${prefix}${retryNum}`;
   }
 
-  // Save and return
-  anonNameMap[chatId][otherUserId] = anonName;
+  // Save to Firestore
+  chatData[otherUserId] = anonName;
+  await setDoc(chatDocRef, chatData);
+
   return anonName;
 }
