@@ -75,40 +75,52 @@ const LeftSidebar = () => {
     }
 
     try {
+      // Check if chat already exists
+      const userChatRef = doc(db, "chats", userData.id);
+      const userChatSnap = await getDoc(userChatRef);
+      const existingChats = userChatSnap.exists()
+        ? userChatSnap.data().chatsData || []
+        : [];
+
+      const alreadyExists = existingChats.some((c) => c.rId === user.id);
+      if (alreadyExists) {
+        toast.info("Chat already exists.");
+        return;
+      }
+
+      // Create new message thread
       const newMessageRef = doc(collection(db, "messages"));
       await setDoc(newMessageRef, {
         createdAt: serverTimestamp(),
         messages: [],
       });
 
-      if (user?.id) {
-        await updateDoc(doc(db, "chats", user.id), {
-          chatsData: arrayUnion({
-            messageId: newMessageRef.id,
-            lastMessage: "",
-            rId: userData?.id,
-            updatedAt: Date.now(),
-            messageSeen: true,
-          }),
-        });
-      }
+      // Add chat to other user
+      await updateDoc(doc(db, "chats", user.id), {
+        chatsData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: userData?.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
 
-      if (userData?.id) {
-        await updateDoc(doc(db, "chats", userData.id), {
-          chatsData: arrayUnion({
-            messageId: newMessageRef.id,
-            lastMessage: "",
-            rId: user.id,
-            updatedAt: Date.now(),
-            messageSeen: true,
-          }),
-        });
-      }
+      // Add chat to current user
+      await updateDoc(userChatRef, {
+        chatsData: arrayUnion({
+          messageId: newMessageRef.id,
+          lastMessage: "",
+          rId: user.id,
+          updatedAt: Date.now(),
+          messageSeen: true,
+        }),
+      });
 
       const uSnap = await getDoc(doc(db, "users", user.id));
       const uData = uSnap.exists() ? uSnap.data() : {};
       setChat({
-        messagesId: newMessageRef.id,
+        messageId: newMessageRef.id,
         lastMessage: "",
         rId: user.id,
         updatedAt: Date.now(),
@@ -233,33 +245,37 @@ const LeftSidebar = () => {
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          chatData?.map((item, index) => {
-            if (!item?.userData) return null;
-            return (
+          chatData &&
+          Object.values(
+            chatData.reduce((acc, item) => {
+              if (!item?.userData) return acc;
+              acc[item.rId] = item; // keep last chat for each user
+              return acc;
+            }, {})
+          ).map((item) => (
+            <div
+              onClick={() => setChat(item)}
+              key={item.rId}
+              className={`friends ${
+                item.messageSeen || item.messageId === messagesId ? "" : "border"
+              }`}
+            >
               <div
-                onClick={() => setChat(item)}
-                key={index}
-                className={`friends ${
-                  item.messageSeen || item.messageId === messagesId ? "" : "border"
-                }`}
+                className="avatar-circle"
+                style={{
+                  backgroundColor: stringToColor(item.userData.id),
+                }}
               >
-                <div
-                  className="avatar-circle"
-                  style={{
-                    backgroundColor: stringToColor(item.userData.id),
-                  }}
-                >
-                  {item.userData.name
-                    ? item.userData.name.charAt(0).toUpperCase()
-                    : "U"}
-                </div>
-                <div>
-                  <p>{item.userData.name || "Unknown User"}</p>
-                  <span>{item.lastMessage || ""}</span>
-                </div>
+                {item.userData.name
+                  ? item.userData.name.charAt(0).toUpperCase()
+                  : "U"}
               </div>
-            );
-          })
+              <div>
+                <p>{item.userData.name || "Unknown User"}</p>
+                <span>{item.lastMessage || ""}</span>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
