@@ -20,10 +20,8 @@ const AppContextProvider = (props) => {
       const userSnap = await getDoc(userRef);
       const userData = userSnap.data();
       setUserData(userData);
-      if (userData.avatar && userData.name) {
-        navigate("/chat");
-      } else {
-        navigate("/profile-update");
+      if (!userData.avatar || !userData.name) {
+      navigate("/profile-update");
       }
       await updateDoc(userRef, {
         lastSeen: Date.now(),
