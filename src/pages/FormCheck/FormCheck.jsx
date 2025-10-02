@@ -10,6 +10,8 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -76,6 +78,23 @@ const FormCheck = () => {
     }
   };
 
+  // --- Delete a post ---
+  const handleDeletePost = async (postId, postUserId) => {
+    try {
+      if (currentUser.uid !== postUserId) {
+        return toast.error("You can only delete your own posts!");
+      }
+
+      await updateDoc(doc(db, "posts", postId), { deleted: true });
+
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      toast.success("Post deleted!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete post: " + err.message);
+    }
+  };
+
   // --- Initiate chat with anonymous names ---
   const handleChat = async (post) => {
     try {
@@ -87,9 +106,7 @@ const FormCheck = () => {
       const chatRef = doc(db, "messages", chatId);
       const chatSnap = await getDoc(chatRef);
 
-      // Create chat if not exists
       if (!chatSnap.exists()) {
-        // Assign anonymous names
         const usedNames = [];
         const getAnonName = () => {
           const available = anonNamesList.filter((n) => !usedNames.includes(n));
@@ -105,7 +122,6 @@ const FormCheck = () => {
           [user2]: getAnonName(),
         };
 
-        // Save chat and names
         await setDoc(chatRef, {
           participants: [user1, user2],
           anonNames,
@@ -120,7 +136,6 @@ const FormCheck = () => {
           createdAt: new Date(),
         });
 
-        // Update user chat lists
         for (const uid of [user1, user2]) {
           const userChatsRef = doc(db, "chats", uid);
           const userChatsSnap = await getDoc(userChatsRef);
@@ -189,13 +204,18 @@ const FormCheck = () => {
             </strong>
             <p>{post.text}</p>
             <small>{post.createdAt?.toDate?.()?.toLocaleString() || ""}</small>
-            <div style={{ marginTop: "8px" }}>
-              <button
-                onClick={() => handleChat(post)}
-                className="chat-btn"
-              >
+            <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
+              <button onClick={() => handleChat(post)} className="chat-btn">
                 Chat
               </button>
+              {currentUser?.uid === post.userId && (
+                <button
+                  onClick={() => handleDeletePost(post.id, post.userId)}
+                  className="delete-btn"
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         ))}
