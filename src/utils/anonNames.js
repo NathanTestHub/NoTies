@@ -2,18 +2,18 @@
 // Structure: { chatId: { userId: anonName } }
 const anonNameMap = {};
 
-// List of possible anonymous names
+// List of possible prefixes
 const anonNamesList = [
-  "Red Panda",
-  "Blue Falcon",
-  "Green Turtle",
-  "Yellow Tiger",
-  "Purple Owl",
-  "Silver Fox",
-  "Golden Eagle",
-  "Crimson Wolf",
-  "Azure Dolphin",
-  "Orange Lion",
+  "RedPanda",
+  "BlueFalcon",
+  "GreenTurtle",
+  "YellowTiger",
+  "PurpleOwl",
+  "SilverFox",
+  "GoldenEagle",
+  "CrimsonWolf",
+  "AzureDolphin",
+  "OrangeLion",
 ];
 
 // Utility function to get or create an anonymous name for a user in a chat
@@ -30,14 +30,24 @@ export function getOrCreateAnonymousName(currentUserId, otherUserId, chatId) {
     return anonNameMap[chatId][otherUserId];
   }
 
-  // Pick a random name that isn’t already taken in this chat
+  // Pick a random prefix
+  const prefix =
+    anonNamesList[Math.floor(Math.random() * anonNamesList.length)] ||
+    "Anonymous";
+
+  // Generate random number between 1000–9999
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+
+  const anonName = `${prefix}${randomNum}`;
+
+  // Ensure uniqueness within the same chat
   const usedNames = Object.values(anonNameMap[chatId]);
-  const availableNames = anonNamesList.filter((n) => !usedNames.includes(n));
-  const randomName =
-    availableNames[Math.floor(Math.random() * availableNames.length)] ||
-    `Anonymous-${Math.floor(Math.random() * 1000)}`;
+  if (usedNames.includes(anonName)) {
+    // If duplicate, retry
+    return getOrCreateAnonymousName(currentUserId, otherUserId, chatId);
+  }
 
   // Save and return
-  anonNameMap[chatId][otherUserId] = randomName;
-  return randomName;
+  anonNameMap[chatId][otherUserId] = anonName;
+  return anonName;
 }
