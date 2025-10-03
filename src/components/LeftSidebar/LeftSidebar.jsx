@@ -30,8 +30,21 @@ const LeftSidebar = () => {
     chatVisible,
     setChatVisible,
   } = useContext(AppContext);
+
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+
+  // -------------------- Convert chatData object to array --------------------
+  const chatList = Array.isArray(chatData)
+    ? chatData
+    : chatData
+      ? Object.keys(chatData)
+          .filter((key) => key !== "messages") // skip messages array if exists
+          .map((key) => chatData[key])
+      : [];
+
+  console.log("Rendering LeftSidebar, chatData:", chatData);
+  console.log("Rendering LeftSidebar, chatList (array):", chatList);
 
   // -------------------- Search Users --------------------
   const inputHandler = async (e) => {
@@ -42,9 +55,11 @@ const LeftSidebar = () => {
         const userRef = collection(db, "users");
         const q = query(userRef, where("username", "==", input.toLowerCase()));
         const querySnap = await getDocs(q);
+
         if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
           let userExist = false;
-          chatData.forEach((user) => {
+
+          chatList.forEach((user) => {
             if (user.rId === querySnap.docs[0].data().id) {
               userExist = true;
             }
@@ -55,14 +70,17 @@ const LeftSidebar = () => {
         } else {
           setUser(null);
         }
+      } else {
+        setShowSearch(false);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error in inputHandler:", error);
     }
   };
 
   // -------------------- Add Chat --------------------
   const addChat = async () => {
+    if (!user) return;
     const messageRef = collection(db, "messages");
     const chatsRef = collection(db, "chats");
     try {
@@ -105,42 +123,52 @@ const LeftSidebar = () => {
       });
       setShowSearch(false);
       setChatVisible(true);
+      console.log("Added new chat with user:", uData);
     } catch (error) {
       toast.error(error.message);
-      console.error(error);
+      console.error("Error in addChat:", error);
     }
   };
 
   // -------------------- Set Chat --------------------
   const setChat = async (item) => {
     try {
+      console.log("Setting chatUser:", item);
       setMessagesId(item.messageId);
       setChatUser(item);
+
       const userChatsRef = doc(db, "chats", userData.id);
       const userChatsSnapshot = await getDoc(userChatsRef);
       const userChatsData = userChatsSnapshot.data();
+
       const chatIndex = userChatsData.chatsData.findIndex(
         (c) => c.messageId === item.messageId
       );
-      userChatsData.chatsData[chatIndex].messageSeen = true;
-      await updateDoc(userChatsRef, {
-        chatsData: userChatsData.chatsData,
-      });
+
+      if (chatIndex >= 0) {
+        userChatsData.chatsData[chatIndex].messageSeen = true;
+        await updateDoc(userChatsRef, {
+          chatsData: userChatsData.chatsData,
+        });
+      }
 
       setChatVisible(true);
     } catch (error) {
       toast.error(error.message);
+      console.error("Error in setChat:", error);
     }
   };
 
   // -------------------- Update Chat User Data --------------------
   useEffect(() => {
     const updateChatUserData = async () => {
-      if (chatUser) {
+      if (chatUser?.userData?.id) {
+        console.log("Updating chatUser data for:", chatUser.userData.id);
         const userRef = doc(db, "users", chatUser.userData.id);
         const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
-        setChatUser((prev) => ({ ...prev, userData: userData }));
+        const updatedUserData = userSnap.data();
+        console.log("Fetched updated userData:", updatedUserData);
+        setChatUser((prev) => ({ ...prev, userData: updatedUserData }));
       }
     };
     updateChatUserData();
@@ -149,7 +177,7 @@ const LeftSidebar = () => {
   // -------------------- Generate Chat Link --------------------
   const generateChatLink = async () => {
     try {
-      const linkId = crypto.randomUUID(); // unique link ID
+      const linkId = crypto.randomUUID();
       await setDoc(doc(db, "chatLinks", linkId), {
         userId: userData.id,
         createdAt: serverTimestamp(),
@@ -159,8 +187,9 @@ const LeftSidebar = () => {
       const link = `${window.location.origin}/chat-link/${linkId}`;
       navigator.clipboard.writeText(link);
       toast.success("Chat link copied to clipboard!");
+      console.log("Generated chat link:", link);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to generate chat link:", error);
       toast.error("Failed to generate chat link.");
     }
   };
@@ -195,8 +224,8 @@ const LeftSidebar = () => {
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          (Array.isArray(chatData) ? chatData : []).map((item, index) => {
-            if (!item.userData) return null;
+          chatList.map((item, index) => {
+            if (!item?.userData) return null;
             return (
               <div
                 onClick={() => setChat(item)}
@@ -221,7 +250,6 @@ const LeftSidebar = () => {
         )}
       </div>
 
-      {/* -------------------- Generate Chat Link Button -------------------- */}
       <div className="left-sidebar-bottom">
         <button className="generate-link-btn" onClick={generateChatLink}>
           Generate Chat Link
