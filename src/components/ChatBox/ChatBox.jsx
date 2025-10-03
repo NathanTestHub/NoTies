@@ -3,165 +3,56 @@ import "./ChatBox.css";
 import assets from "../../assets/assets";
 import { AppContext } from "../../context/AppContext";
 import {
-  doc,
   collection,
   addDoc,
-  getDoc,
   onSnapshot,
-  setDoc,
-  serverTimestamp,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { toast } from "react-toastify";
 import upload from "../../lib/upload";
-import { useLocation } from "react-router-dom";
+import { stringToColor } from "../../utils/colors";
+import { getOrCreateAnonymousName } from "../../utils/anonNames";
 
 const ChatBox = () => {
-  const location = useLocation();
   const {
     userData,
     messagesId,
     chatUser,
-    setChatUser,
     messages,
     setMessages,
     chatVisible,
-    setMessagesId,
   } = useContext(AppContext);
 
   const [input, setInput] = useState("");
+  const [otherAnonName, setOtherAnonName] = useState("Anonymous");
 
-  // --- Setup chat from navigation state ---
+  // --- Fetch anonymous name for the other user ---
   useEffect(() => {
-    const setupChatFromNav = async () => {
+    if (!messagesId || !chatUser?.rId) return;
+
+    let isMounted = true;
+    async function fetchAnonName() {
       try {
-        if (location.state?.userName && location.state?.userId) {
-          const userSnap = await getDoc(doc(db, "users", location.state.userId));
-          if (userSnap.exists()) {
-            const uData = userSnap.data();
-            setChatUser({
-              rId: uData.id,
-              messageId: location.state.messageId || null,
-              userData: uData,
-            });
-            if (location.state.messageId) setMessagesId(location.state.messageId);
-          } else {
-            console.warn("User not found:", location.state.userId);
-          }
-        }
+        const name = await getOrCreateAnonymousName(
+          userData.uid,
+          chatUser.rId,
+          messagesId
+        );
+        if (isMounted) setOtherAnonName(name);
       } catch (err) {
-        console.error("Failed to setup chat from nav:", err);
+        console.error("Failed to get anonymous name:", err);
       }
+    }
+
+    fetchAnonName();
+
+    return () => {
+      isMounted = false;
     };
-    setupChatFromNav();
-  }, [location.state, setChatUser, setMessagesId]);
-
-  // --- Send a text message ---
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    if (!userData?.id || !messagesId || !chatUser?.rId) {
-      toast.error("Missing chat or user info.");
-      return;
-    }
-
-    try {
-      const msgCol = collection(db, "messages", messagesId, "messages");
-
-      await addDoc(msgCol, {
-        sId: userData.id,
-        text: input.trim(),
-        createdAt: serverTimestamp(),
-      });
-
-      console.log("Message added to subcollection:", messagesId);
-
-      // Update lastMessage in chats for both users
-      const userIDs = [chatUser.rId, userData.id];
-      for (const id of userIDs) {
-        const userChatsRef = doc(db, "chats", id);
-        const userChatsSnap = await getDoc(userChatsRef);
-        if (userChatsSnap.exists()) {
-          const userChatData = userChatsSnap.data();
-          const chatIndex = userChatData.chatsData?.findIndex(
-            (c) => c.messageId === messagesId
-          );
-          if (chatIndex >= 0) {
-            userChatData.chatsData[chatIndex].lastMessage = input.trim().slice(0, 30);
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
-            }
-            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to send message:", err);
-      toast.error(err.message);
-    }
-
-    setInput("");
-  };
-
-  // --- Send image ---
-  const sendImage = async (e) => {
-    if (!e.target.files[0]) return;
-    if (!userData?.id || !messagesId || !chatUser?.rId) {
-      toast.error("Missing chat or user info.");
-      return;
-    }
-
-    try {
-      const fileUrl = await upload(e.target.files[0]);
-      if (!fileUrl) throw new Error("Upload failed");
-
-      const msgCol = collection(db, "messages", messagesId, "messages");
-
-      await addDoc(msgCol, {
-        sId: userData.id,
-        image: fileUrl,
-        createdAt: serverTimestamp(),
-      });
-
-      console.log("Image added to subcollection:", messagesId);
-
-      const userIDs = [chatUser.rId, userData.id];
-      for (const id of userIDs) {
-        const userChatsRef = doc(db, "chats", id);
-        const userChatsSnap = await getDoc(userChatsRef);
-        if (userChatsSnap.exists()) {
-          const userChatData = userChatsSnap.data();
-          const chatIndex = userChatData.chatsData?.findIndex(
-            (c) => c.messageId === messagesId
-          );
-          if (chatIndex >= 0) {
-            userChatData.chatsData[chatIndex].lastMessage = "Image";
-            userChatData.chatsData[chatIndex].updatedAt = Date.now();
-            if (userChatData.chatsData[chatIndex].rId === userData.id) {
-              userChatData.chatsData[chatIndex].messageSeen = false;
-            }
-            await setDoc(userChatsRef, { chatsData: userChatData.chatsData }, { merge: true });
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to send image:", err);
-      toast.error(err.message);
-    }
-  };
-
-  // --- Convert timestamp ---
-  const convertTimestamp = (timestamp) => {
-    if (!timestamp?.toDate) return "";
-    const date = timestamp.toDate();
-    const hour = date.getHours();
-    const minute = date.getMinutes().toString().padStart(2, "0");
-    return hour >= 12
-      ? `${hour > 12 ? hour - 12 : 12}:${minute} PM`
-      : `${hour}:${minute} AM`;
-  };
+  }, [userData.uid, chatUser?.rId, messagesId]);
 
   // --- Listen for messages in subcollection ---
   useEffect(() => {
@@ -180,11 +71,62 @@ const ChatBox = () => {
     return () => unSub();
   }, [messagesId, setMessages]);
 
-  if (!chatUser) {
+  // --- Send a text message ---
+  const sendMessage = async () => {
+    if (!input.trim() || !userData?.id || !messagesId || !chatUser?.rId) return;
+
+    try {
+      const msgCol = collection(db, "messages", messagesId, "messages");
+
+      await addDoc(msgCol, {
+        sId: userData.id,
+        text: input.trim(),
+        createdAt: serverTimestamp(),
+      });
+      setInput("");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
+    }
+  };
+
+  // --- Send image ---
+  const sendImage = async (e) => {
+    if (!e.target.files[0] || !userData?.id || !messagesId || !chatUser?.rId)
+      return;
+
+    try {
+      const fileUrl = await upload(e.target.files[0]);
+      if (!fileUrl) throw new Error("Upload failed");
+
+      const msgCol = collection(db, "messages", messagesId, "messages");
+
+      await addDoc(msgCol, {
+        sId: userData.id,
+        image: fileUrl,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
+    }
+  };
+
+  const convertTimestamp = (timestamp) => {
+    if (!timestamp?.toDate) return "";
+    const date = timestamp.toDate();
+    const hour = date.getHours();
+    const minute = date.getMinutes().toString().padStart(2, "0");
+    return hour >= 12
+      ? `${hour > 12 ? hour - 12 : 12}:${minute} PM`
+      : `${hour}:${minute} AM`;
+  };
+
+  if (!chatUser?.userData) {
     return (
       <div className={`chat-welcome ${chatVisible ? "" : "hidden"}`}>
-        <img src={assets.logo_icon} alt="" />
-        <p>Chat anytime, anywhere</p>
+        <img src={assets.logo_icon || null} alt="Logo" />
+        <p>Chat anonymously anytime</p>
       </div>
     );
   }
@@ -192,74 +134,64 @@ const ChatBox = () => {
   return (
     <div className={`chat-box ${chatVisible ? "" : "hidden"}`}>
       <div className="chat-user">
-        <img
-          src={chatUser.userData.avatar || assets.defaultAvatar}
-          alt={chatUser.userData.name || "Anonymous"}
-        />
-        <p>
-          {chatUser.userData.name || "Anonymous"}{" "}
-          {chatUser.userData.isAnonymous ? "(Anonymous)" : ""}
-          {Date.now() - (chatUser.userData.lastSeen || 0) <= 70000 && (
-            <img className="dot" src={assets.green_dot} alt="" />
-          )}
-        </p>
-        <img src={assets.help_icon} className="help" alt="" />
-        <img
-          onClick={() => setChatVisible(false)}
-          src={assets.arrow_icon}
-          className="arrow"
-          alt=""
-        />
+        <div
+          className="avatar-circle"
+          style={{ backgroundColor: stringToColor(chatUser.rId) }}
+        >
+          {otherAnonName.charAt(0).toUpperCase()}
+        </div>
+        <p>{otherAnonName}</p>
       </div>
 
       <div className="chat-messages">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={
-              message.sId === userData.id
-                ? "sent-message"
-                : "received-message"
-            }
-          >
-            {message.image ? (
-              <img className="message-image" src={message.image} alt="" />
-            ) : (
-              <p className="message">{message.text}</p>
-            )}
-            <div>
-              <img
-                src={
-                  message.sId === userData.id
-                    ? userData.avatar || assets.defaultAvatar
-                    : chatUser.userData.avatar || assets.defaultAvatar
-                }
-                alt={chatUser.userData.name || "Anonymous"}
-              />
-              <p>{convertTimestamp(message.createdAt)}</p>
+        {messages?.map((message) => {
+          const isSelf = message.sId === userData.id;
+          const displayName = isSelf ? "You" : otherAnonName;
+
+          return (
+            <div
+              key={message.id}
+              className={isSelf ? "sent-message" : "received-message"}
+            >
+              {message.image ? (
+                <img className="message-image" src={message.image} alt="Message" />
+              ) : (
+                <p className="message">{message.text}</p>
+              )}
+
+              <div className="message-meta">
+                <div
+                  className="avatar-circle"
+                  style={{
+                    backgroundColor: stringToColor(isSelf ? userData.id : chatUser.rId),
+                  }}
+                >
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                <p>{convertTimestamp(message.createdAt)}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="chat-input">
         <input
-          onChange={(e) => setInput(e.target.value)}
           value={input}
-          type="text"
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Type your message..."
         />
         <input
-          onChange={sendImage}
           type="file"
           id="image"
           accept="image/png, image/jpeg"
           hidden
+          onChange={sendImage}
         />
         <label htmlFor="image">
-          <img src={assets.gallery_icon} alt="" />
+          <img src={assets.gallery_icon || null} alt="Upload" />
         </label>
-        <img onClick={sendMessage} src={assets.send_button} alt="" />
+        <img src={assets.send_button || null} alt="Send" onClick={sendMessage} />
       </div>
     </div>
   );

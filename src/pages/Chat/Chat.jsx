@@ -5,40 +5,30 @@ import ChatBox from "../../components/ChatBox/ChatBox";
 import RightSidebar from "../../components/RightSidebar/RightSidebar";
 import { AppContext } from "../../context/AppContext";
 import { useLocation } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../config/firebase";
 
 const Chat = () => {
   const location = useLocation();
   const {
     chatData,
-    userData,
     setChatUser,
     setMessagesId,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const setupChatFromNav = async () => {
-      if (location.state?.userId) {
-        const uSnap = await getDoc(doc(db, "users", location.state.userId));
-        if (uSnap.exists()) {
-          const uData = uSnap.data();
-          setChatUser({
-            rId: uData.id,
-            messageId: location.state.messageId,
-            userData: uData,
-          });
-          setMessagesId(location.state.messageId);
-        }
-      }
-    };
-    setupChatFromNav();
+    if (location.state?.userId && location.state?.alias) {
+      setChatUser({
+        rId: location.state.userId,
+        messageId: location.state.messageId,
+        alias: location.state.alias, // anonymous alias only
+      });
+      setMessagesId(location.state.messageId);
+    }
   }, [location.state, setChatUser, setMessagesId]);
 
   useEffect(() => {
-    if (chatData && userData) setLoading(false);
-  }, [chatData, userData]);
+    if (chatData) setLoading(false);
+  }, [chatData]);
 
   return (
     <div className="chat">
@@ -47,7 +37,7 @@ const Chat = () => {
       ) : (
         <div className="chat-container">
           <LeftSidebar />
-          <ChatBox />
+          <ChatBox /> {/* Make sure ChatBox uses chatData.alias */}
           <RightSidebar />
         </div>
       )}

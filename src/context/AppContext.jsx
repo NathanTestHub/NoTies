@@ -19,11 +19,19 @@ const AppContextProvider = ({ children }) => {
   const loadUserData = async (uid) => {
     try {
       const userRef = doc(db, "users", uid);
+<<<<<<< HEAD
       const snap = await getDoc(userRef);
 
       if (!snap.exists()) {
         console.warn("User document does not exist in Firestore");
         return;
+=======
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      setUserData(userData);
+      if (!userData.avatar || !userData.name) {
+      navigate("/profile-update");
+>>>>>>> 6c4eaa04d0d84f3f16332aaf2c422e5cf5725c44
       }
 
       const data = snap.data();
