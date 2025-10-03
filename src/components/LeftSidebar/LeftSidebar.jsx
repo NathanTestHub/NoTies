@@ -195,7 +195,7 @@ const LeftSidebar = () => {
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          chatData.map((item, index) => {
+          (Array.isArray(chatData) ? chatData : []).map((item, index) => {
             if (!item.userData) return null;
             return (
               <div
