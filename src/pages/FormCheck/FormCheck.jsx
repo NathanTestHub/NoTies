@@ -150,6 +150,23 @@ const FormCheck = () => {
 
   return (
     <div className="form-check">
+      {/* ← Back arrow button */}
+      <button
+        className="back-btn"
+        onClick={() => navigate("/chat")}
+        style={{
+          position: "absolute",
+          left: "10px",
+          top: "10px",
+          background: "transparent",
+          border: "none",
+          fontSize: "1.5rem",
+          cursor: "pointer",
+        }}
+      >
+        &rarr;
+      </button>
+
       <textarea
         className="post-input"
         value={input}
@@ -166,20 +183,18 @@ const FormCheck = () => {
             <strong>{post.userName}</strong>
             <p>{post.text}</p>
             <small>
-              {post.createdAt?.toDate
-                ? post.createdAt.toDate().toLocaleString()
-                : ""}
+              {post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : ""}
             </small>
             <div style={{ marginTop: "8px" }}>
-              {post.userId !== currentUser?.uid && (  
-              <button
-                onClick={() => handleChat(post)}
-                className="chat-btn"
-                style={{ marginRight: "10px" }}
-              >
-                Chat
-              </button>
-              )}  
+              {post.userId !== currentUser?.uid && (
+                <button
+                  onClick={() => handleChat(post)}
+                  className="chat-btn"
+                  style={{ marginRight: "10px" }}
+                >
+                  Chat
+                </button>
+              )}
               {post.userId === currentUser?.uid && (
                 <button
                   onClick={() => handleDelete(post.id, post.userId)}
