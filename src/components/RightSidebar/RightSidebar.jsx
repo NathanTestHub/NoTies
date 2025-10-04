@@ -6,7 +6,7 @@ import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 
 const RightSidebar = () => {
-  const { chatUser, messages } = useContext(AppContext);
+  const { userData, messages } = useContext(AppContext); // use userData instead of chatUser
   const [messageImages, setMessageImages] = useState([]);
   const navigate = useNavigate();
 
@@ -22,17 +22,17 @@ const RightSidebar = () => {
     navigate("/form-check");
   };
 
-  return chatUser ? (
+  return userData ? (
     <div className="right-sidebar">
       <div className="right-sidebar-profile">
-        <img src={chatUser.userData.avatar} alt="" />
+        <img src={userData.avatar || assets.defaultAvatar} alt="Profile" />
         <h3>
-          {Date.now() - chatUser.userData.lastSeen <= 70000 ? (
-            <img src={assets.green_dot} className="dot" alt="" />
+          {Date.now() - (userData.lastSeen || 0) <= 70000 ? (
+            <img src={assets.green_dot} className="dot" alt="Online" />
           ) : null}
-          {chatUser.userData.name}
+          {userData.name || "Your Name"}
         </h3>
-        <p>{chatUser.userData.bio}</p>
+        <p>{userData.bio || "No bio available"}</p>
       </div>
       <hr />
       <div className="right-sidebar-media">
@@ -43,13 +43,12 @@ const RightSidebar = () => {
               onClick={() => window.open(url)}
               key={index}
               src={url}
-              alt=""
+              alt={`media-${index}`}
             />
           ))}
         </div>
       </div>
 
-      {/* Wrap the buttons in a container */}
       <div className="right-sidebar-buttons">
         <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
