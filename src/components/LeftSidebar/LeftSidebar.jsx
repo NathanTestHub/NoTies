@@ -31,16 +31,17 @@ const anonPrefixes = [
   "OrangeLion",
 ];
 const anonNameMap = {};
-const getOrCreateAnonName = async (messageId) => {
-  if (!messageId) return "Anonymous";
-  if (anonNameMap[messageId]) return anonNameMap[messageId];
+const getOrCreateAnonName = async (messageId, userId) => {
+  if (!messageId || !userId) return "Anonymous";
+  const key = `${messageId}_${userId}`;
+  if (anonNameMap[key]) return anonNameMap[key];
 
-  const anonRef = doc(db, "anonNames", messageId);
+  const anonRef = doc(db, "anonNames", key);
   const anonSnap = await getDoc(anonRef);
 
   if (anonSnap.exists()) {
-    anonNameMap[messageId] = anonSnap.data().anonName;
-    return anonNameMap[messageId];
+    anonNameMap[key] = anonSnap.data().anonName;
+    return anonNameMap[key];
   }
 
   const prefix = anonPrefixes[Math.floor(Math.random() * anonPrefixes.length)];
@@ -48,7 +49,7 @@ const getOrCreateAnonName = async (messageId) => {
   const newAnon = `${prefix}${suffix}`;
 
   await setDoc(anonRef, { anonName: newAnon });
-  anonNameMap[messageId] = newAnon;
+  anonNameMap[key] = newAnon;
   return newAnon;
 };
 
@@ -156,13 +157,15 @@ const LeftSidebar = () => {
   const setChat = async (item) => {
     setMessagesId(item.messageId);
 
-    let name = item.userData?.name || (await getOrCreateAnonName(item.messageId));
+    const name = item.userData?.name || (await getOrCreateAnonName(item.messageId, item.rId));
+    const anonName = await getOrCreateAnonName(item.messageId, item.rId);
 
     setChatUser({
       ...item,
       userData: {
         id: item.rId,
         name,
+        anonName,
         avatar: item.userData?.avatar || null,
       },
     });
@@ -218,13 +221,13 @@ const LeftSidebar = () => {
 
       const chatsData = snap.data().chatsData || [];
 
-      // Map chats and fetch user names if needed
       const enrichedChats = await Promise.all(
         chatsData.map(async (chat) => {
           const userSnap = await getDoc(doc(db, "users", chat.rId));
           const userInfo = userSnap.exists() ? userSnap.data() : {};
-          const name = userInfo.name || (await getOrCreateAnonName(chat.messageId));
-          return { ...chat, userData: { ...userInfo, name } };
+          const name = userInfo.name || (await getOrCreateAnonName(chat.messageId, chat.rId));
+          const anonName = await getOrCreateAnonName(chat.messageId, chat.rId);
+          return { ...chat, userData: { ...userInfo, name, anonName } };
         })
       );
 
@@ -277,7 +280,10 @@ const LeftSidebar = () => {
                       alt={item.userData.name || "Unknown User"}
                     />
                     <div className="friend-info">
-                      <p>{item.userData.name || "Unknown User"}</p>
+                      <p>
+                        {item.userData.name || "Unknown User"}{" "}
+                        {item.userData.anonName ? `(${item.userData.anonName})` : ""}
+                      </p>
                       <span>{item.lastMessage || ""}</span>
                     </div>
                   </div>
