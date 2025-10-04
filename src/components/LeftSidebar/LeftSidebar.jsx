@@ -189,25 +189,6 @@ const LeftSidebar = () => {
     }
   };
 
-  // 🔗 Generate chat link
-  const generateChatLink = async () => {
-    try {
-      const linkId = crypto.randomUUID();
-      await setDoc(doc(db, "chatLinks", linkId), {
-        userId: userData.id,
-        createdAt: serverTimestamp(),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-      });
-
-      const link = `${window.location.origin}/chat-link/${linkId}`;
-      navigator.clipboard.writeText(link);
-      toast.success("Chat link copied to clipboard!");
-    } catch (err) {
-      console.error("❌ Failed to generate chat link:", err);
-      toast.error("Failed to generate chat link.");
-    }
-  };
-
   // 🔄 Real-time chat listener
   useEffect(() => {
     if (!userData?.id) return;
@@ -297,12 +278,6 @@ const LeftSidebar = () => {
               )
           )
         )}
-      </div>
-
-      <div className="left-sidebar-bottom">
-        <button className="generate-link-btn" onClick={generateChatLink}>
-          Generate Chat Link
-        </button>
       </div>
     </div>
   );

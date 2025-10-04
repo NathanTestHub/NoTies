@@ -4,6 +4,9 @@ import assets from "../../assets/assets";
 import { logout } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { toast } from "react-toastify";
 
 // --- Anonymous name system (same as ChatBox) ---
 const anonPrefixes = [
@@ -39,9 +42,6 @@ const getOrCreateAnonName = async (messageId, userId) => {
   return newAnon;
 };
 
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../config/firebase";
-
 const RightSidebar = () => {
   const { userData, messagesId, messages } = useContext(AppContext);
   const [messageImages, setMessageImages] = useState([]);
@@ -68,6 +68,25 @@ const RightSidebar = () => {
 
   const handleCreateForm = () => {
     navigate("/form-check");
+  };
+
+  // --- Generate chat link ---
+  const generateChatLink = async () => {
+    try {
+      const linkId = crypto.randomUUID();
+      await setDoc(doc(db, "chatLinks", linkId), {
+        userId: userData.id,
+        createdAt: serverTimestamp(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      });
+
+      const link = `${window.location.origin}/chat-link/${linkId}`;
+      navigator.clipboard.writeText(link);
+      toast.success("Chat link copied to clipboard!");
+    } catch (err) {
+      console.error("❌ Failed to generate chat link:", err);
+      toast.error("Failed to generate chat link.");
+    }
   };
 
   return userData ? (
@@ -98,6 +117,7 @@ const RightSidebar = () => {
       </div>
 
       <div className="right-sidebar-buttons">
+        <button onClick={generateChatLink}>Generate Chat Link</button>
         <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
       </div>
@@ -105,6 +125,7 @@ const RightSidebar = () => {
   ) : (
     <div className="right-sidebar">
       <div className="right-sidebar-buttons">
+        <button onClick={generateChatLink}>Generate Chat Link</button>
         <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
       </div>
