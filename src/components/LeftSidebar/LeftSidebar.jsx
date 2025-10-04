@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
@@ -18,30 +19,56 @@ import { db } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 
+// --- Anonymous name system ---
+const anonPrefixes = [
+  "BlueFox",
+  "RedPanda",
+  "SilverWolf",
+  "GoldenHawk",
+  "GreenTurtle",
+  "BlackJaguar",
+  "PurpleOwl",
+  "OrangeLion",
+];
+const anonNameMap = {};
+const getOrCreateAnonName = async (messageId) => {
+  if (!messageId) return "Anonymous";
+  if (anonNameMap[messageId]) return anonNameMap[messageId];
+
+  const anonRef = doc(db, "anonNames", messageId);
+  const anonSnap = await getDoc(anonRef);
+
+  if (anonSnap.exists()) {
+    anonNameMap[messageId] = anonSnap.data().anonName;
+    return anonNameMap[messageId];
+  }
+
+  const prefix = anonPrefixes[Math.floor(Math.random() * anonPrefixes.length)];
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  const newAnon = `${prefix}${suffix}`;
+
+  await setDoc(anonRef, { anonName: newAnon });
+  anonNameMap[messageId] = newAnon;
+  return newAnon;
+};
+
 const LeftSidebar = () => {
   const navigate = useNavigate();
   const {
     userData,
-    chatData,
     chatUser,
     setChatUser,
-    setMessagesId,
     messagesId,
+    setMessagesId,
     chatVisible,
     setChatVisible,
   } = useContext(AppContext);
 
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [chatList, setChatList] = useState([]);
 
-  const chatList = Array.isArray(chatData)
-    ? chatData
-    : chatData
-    ? Object.keys(chatData)
-        .filter((key) => key !== "messages")
-        .map((key) => chatData[key])
-    : [];
-
+  // 🔎 Search handler
   const inputHandler = async (e) => {
     try {
       const input = e.target.value;
@@ -52,15 +79,9 @@ const LeftSidebar = () => {
         const querySnap = await getDocs(q);
 
         if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
-          let userExist = false;
-
-          chatList.forEach((user) => {
-            if (user.rId === querySnap.docs[0].data().id) {
-              userExist = true;
-            }
-          });
-
-          if (!userExist) setUser(querySnap.docs[0].data());
+          const foundUser = querySnap.docs[0].data();
+          const existsInChats = chatList.some((chat) => chat.rId === foundUser.id);
+          if (!existsInChats) setUser(foundUser);
           else setUser(null);
         } else {
           setUser(null);
@@ -68,88 +89,49 @@ const LeftSidebar = () => {
       } else {
         setShowSearch(false);
       }
-    } catch (error) {
-      console.error("Error in inputHandler:", error);
+    } catch (err) {
+      console.error("❌ Error in inputHandler:", err);
     }
   };
 
+  // ➕ Add new chat
   const addChat = async () => {
     if (!user) return;
-    const messageRef = collection(db, "messages");
-    const chatsRef = collection(db, "chats");
     try {
-      const newMessageRef = doc(messageRef);
+      const messagesRef = collection(db, "messages");
+      const chatsRef = collection(db, "chats");
+      const newMessageRef = doc(messagesRef);
 
-      await setDoc(newMessageRef, {
-        createAt: serverTimestamp(),
-        messages: [],
-      });
+      await setDoc(newMessageRef, { createdAt: serverTimestamp(), messages: [] });
 
-      await updateDoc(doc(chatsRef, user.id), {
-        chatsData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: userData.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
+      const updates = [
+        { id: user.id, rId: userData.id },
+        { id: userData.id, rId: user.id },
+      ];
 
-      await updateDoc(doc(chatsRef, userData.id), {
-        chatsData: arrayUnion({
-          messageId: newMessageRef.id,
-          lastMessage: "",
-          rId: user.id,
-          updatedAt: Date.now(),
-          messageSeen: true,
-        }),
-      });
-
-      const uSnap = await getDoc(doc(db, "users", user.id));
-      const uData = uSnap.data();
-      setChat({
-        messagesId: newMessageRef.id,
-        lastMessage: "",
-        rId: user.id,
-        updatedAt: Date.now(),
-        messageSeen: true,
-        userData: uData,
-      });
-      setShowSearch(false);
-      setChatVisible(true);
-    } catch (error) {
-      toast.error(error.message);
-      console.error("Error in addChat:", error);
-    }
-  };
-
-  const setChat = async (item) => {
-    try {
-      setMessagesId(item.messageId);
-      setChatUser(item);
-
-      const userChatsRef = doc(db, "chats", userData.id);
-      const userChatsSnapshot = await getDoc(userChatsRef);
-      const userChatsData = userChatsSnapshot.data();
-
-      const chatIndex = userChatsData.chatsData.findIndex(
-        (c) => c.messageId === item.messageId
-      );
-
-      if (chatIndex >= 0) {
-        userChatsData.chatsData[chatIndex].messageSeen = true;
-        await updateDoc(userChatsRef, {
-          chatsData: userChatsData.chatsData,
+      for (const u of updates) {
+        const userChatRef = doc(chatsRef, u.id);
+        await updateDoc(userChatRef, {
+          chatsData: arrayUnion({
+            messageId: newMessageRef.id,
+            lastMessage: "",
+            rId: u.rId,
+            updatedAt: Date.now(),
+            messageSeen: true,
+          }),
         });
       }
 
+      setUser(null);
+      setShowSearch(false);
       setChatVisible(true);
-    } catch (error) {
-      toast.error(error.message);
-      console.error("Error in setChat:", error);
+    } catch (err) {
+      console.error("❌ Error in addChat:", err);
+      toast.error(err.message);
     }
   };
 
+  // 🗑️ Delete chat
   const deleteChat = async (messageId) => {
     if (!messageId) return;
     try {
@@ -157,32 +139,54 @@ const LeftSidebar = () => {
       const userChatsSnap = await getDoc(userChatsRef);
       if (!userChatsSnap.exists()) return;
 
-      const userChatsData = userChatsSnap.data();
-      const updatedChats = userChatsData.chatsData.filter(
-        (c) => c.messageId !== messageId
-      );
+      const updatedChats = userChatsSnap
+        .data()
+        .chatsData.filter((c) => c.messageId !== messageId);
 
       await setDoc(userChatsRef, { chatsData: updatedChats }, { merge: true });
-      toast.success("Chat deleted!");
       if (messagesId === messageId) setChatVisible(false);
-    } catch (error) {
-      console.error("Failed to delete chat:", error);
+      toast.success("Chat deleted!");
+    } catch (err) {
+      console.error("❌ Failed to delete chat:", err);
       toast.error("Failed to delete chat.");
     }
   };
 
-  useEffect(() => {
-    const updateChatUserData = async () => {
-      if (chatUser?.userData?.id) {
-        const userRef = doc(db, "users", chatUser.userData.id);
-        const userSnap = await getDoc(userRef);
-        const updatedUserData = userSnap.data();
-        setChatUser((prev) => ({ ...prev, userData: updatedUserData }));
-      }
-    };
-    updateChatUserData();
-  }, [chatData]);
+  // 📥 Select a chat
+  const setChat = async (item) => {
+    setMessagesId(item.messageId);
 
+    let name = item.userData?.name || (await getOrCreateAnonName(item.messageId));
+
+    setChatUser({
+      ...item,
+      userData: {
+        id: item.rId,
+        name,
+        avatar: item.userData?.avatar || null,
+      },
+    });
+
+    try {
+      const userChatsRef = doc(db, "chats", userData.id);
+      const snap = await getDoc(userChatsRef);
+      if (!snap.exists()) return;
+
+      const chatsData = snap.data().chatsData || [];
+      const index = chatsData.findIndex((c) => c.messageId === item.messageId);
+      if (index >= 0) {
+        chatsData[index].messageSeen = true;
+        await updateDoc(userChatsRef, { chatsData });
+      }
+
+      setChatVisible(true);
+    } catch (err) {
+      console.error("❌ Failed to set chat:", err);
+      toast.error(err.message);
+    }
+  };
+
+  // 🔗 Generate chat link
   const generateChatLink = async () => {
     try {
       const linkId = crypto.randomUUID();
@@ -195,11 +199,40 @@ const LeftSidebar = () => {
       const link = `${window.location.origin}/chat-link/${linkId}`;
       navigator.clipboard.writeText(link);
       toast.success("Chat link copied to clipboard!");
-    } catch (error) {
-      console.error("Failed to generate chat link:", error);
+    } catch (err) {
+      console.error("❌ Failed to generate chat link:", err);
       toast.error("Failed to generate chat link.");
     }
   };
+
+  // 🔄 Real-time chat listener
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    const userChatsRef = doc(db, "chats", userData.id);
+    const unSub = onSnapshot(userChatsRef, async (snap) => {
+      if (!snap.exists()) {
+        setChatList([]);
+        return;
+      }
+
+      const chatsData = snap.data().chatsData || [];
+
+      // Map chats and fetch user names if needed
+      const enrichedChats = await Promise.all(
+        chatsData.map(async (chat) => {
+          const userSnap = await getDoc(doc(db, "users", chat.rId));
+          const userInfo = userSnap.exists() ? userSnap.data() : {};
+          const name = userInfo.name || (await getOrCreateAnonName(chat.messageId));
+          return { ...chat, userData: { ...userInfo, name } };
+        })
+      );
+
+      setChatList(enrichedChats);
+    });
+
+    return () => unSub();
+  }, [userData?.id]);
 
   return (
     <div className={`left-sidebar ${chatVisible ? "hidden" : ""}`}>
@@ -215,6 +248,7 @@ const LeftSidebar = () => {
             </div>
           </div>
         </div>
+
         <div className="left-sidebar-search">
           <img src={assets.search_icon} alt="" />
           <input onChange={inputHandler} type="text" placeholder="Search..." />
@@ -224,46 +258,38 @@ const LeftSidebar = () => {
       <div className="left-sidebar-list">
         {showSearch && user ? (
           <div onClick={addChat} className="friends add-user">
-            <img
-              src={user.avatar || assets.defaultAvatar}
-              alt={user.name || "User"}
-            />
+            <img src={user.avatar || assets.defaultAvatar} alt={user.name || "User"} />
             <p>{user.name || "Unknown User"}</p>
           </div>
         ) : (
-          chatList.map((item, index) => {
-            if (!item?.userData) return null;
-            return (
-              <div
-                key={index}
-                className={`friends ${
-                  item.messageSeen || item.messageId === messagesId
-                    ? ""
-                    : "border"
-                }`}
-              >
+          chatList.map(
+            (item, index) =>
+              item.userData && (
                 <div
-                  className="friend-info-wrapper"
-                  onClick={() => setChat(item)}
+                  key={index}
+                  className={`friends ${
+                    item.messageSeen || item.messageId === messagesId ? "" : "border"
+                  }`}
                 >
-                  <img
-                    src={item.userData.avatar || assets.defaultAvatar}
-                    alt={item.userData.name || "Unknown User"}
-                  />
-                  <div className="friend-info">
-                    <p>{item.userData.name || "Unknown User"}</p>
-                    <span>{item.lastMessage || ""}</span>
+                  <div className="friend-info-wrapper" onClick={() => setChat(item)}>
+                    <img
+                      src={item.userData.avatar || assets.defaultAvatar}
+                      alt={item.userData.name || "Unknown User"}
+                    />
+                    <div className="friend-info">
+                      <p>{item.userData.name || "Unknown User"}</p>
+                      <span>{item.lastMessage || ""}</span>
+                    </div>
                   </div>
+                  <button
+                    className="delete-chat-btn"
+                    onClick={() => deleteChat(item.messageId)}
+                  >
+                    🗑️
+                  </button>
                 </div>
-                <button
-                  className="delete-chat-btn"
-                  onClick={() => deleteChat(item.messageId)}
-                >
-                  🗑️
-                </button>
-              </div>
-            );
-          })
+              )
+          )
         )}
       </div>
 

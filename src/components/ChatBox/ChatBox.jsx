@@ -30,16 +30,17 @@ const anonPrefixes = [
   "OrangeLion",
 ];
 const anonNameMap = {};
-const getOrCreateAnonName = async (messageId) => {
-  if (!messageId) return "Anonymous";
-  if (anonNameMap[messageId]) return anonNameMap[messageId];
+const getOrCreateAnonName = async (messageId, userId) => {
+  if (!messageId || !userId) return "Anonymous";
+  const key = `${messageId}_${userId}`;
+  if (anonNameMap[key]) return anonNameMap[key];
 
-  const anonRef = doc(db, "anonNames", messageId);
+  const anonRef = doc(db, "anonNames", key);
   const anonSnap = await getDoc(anonRef);
 
   if (anonSnap.exists()) {
-    anonNameMap[messageId] = anonSnap.data().anonName;
-    return anonNameMap[messageId];
+    anonNameMap[key] = anonSnap.data().anonName;
+    return anonNameMap[key];
   }
 
   const prefix = anonPrefixes[Math.floor(Math.random() * anonPrefixes.length)];
@@ -47,7 +48,7 @@ const getOrCreateAnonName = async (messageId) => {
   const newAnon = `${prefix}${suffix}`;
 
   await setDoc(anonRef, { anonName: newAnon });
-  anonNameMap[messageId] = newAnon;
+  anonNameMap[key] = newAnon;
   return newAnon;
 };
 
@@ -66,7 +67,7 @@ const ChatBox = () => {
   } = useContext(AppContext);
 
   const [input, setInput] = useState("");
-  const [anonName, setAnonName] = useState("Anonymous");
+  const [anonNames, setAnonNames] = useState({}); // { userId: anonName }
 
   // --- Setup chat from navigation state ---
   useEffect(() => {
@@ -91,15 +92,18 @@ const ChatBox = () => {
     setupChatFromNav();
   }, [location.state, setChatUser, setMessagesId]);
 
-  // --- Load anonymous name for current chat ---
+  // --- Load anonymous names for current chat ---
   useEffect(() => {
-    if (!messagesId) return;
-    const loadAnon = async () => {
-      const anon = await getOrCreateAnonName(messagesId);
-      setAnonName(anon);
+    if (!messagesId || !chatUser?.rId || !userData?.id) return;
+
+    const loadAnonNames = async () => {
+      const otherAnon = await getOrCreateAnonName(messagesId, chatUser.rId);
+      const selfAnon = await getOrCreateAnonName(messagesId, userData.id);
+      setAnonNames({ [chatUser.rId]: otherAnon, [userData.id]: selfAnon });
     };
-    loadAnon();
-  }, [messagesId]);
+
+    loadAnonNames();
+  }, [messagesId, chatUser?.rId, userData?.id]);
 
   // --- Listen for messages ---
   useEffect(() => {
@@ -238,7 +242,7 @@ const ChatBox = () => {
           alt={chatUser.userData.name || "Anonymous"}
         />
         <p>
-          {anonName || chatUser.userData.name || "Anonymous"}{" "}
+          {anonNames[chatUser.rId] || chatUser.userData.name || "Anonymous"}{" "}
           {Date.now() - (chatUser.userData.lastSeen || 0) <= 70000 && (
             <img className="dot" src={assets.green_dot} alt="" />
           )}
@@ -271,7 +275,11 @@ const ChatBox = () => {
                     ? userData.avatar || assets.defaultAvatar
                     : chatUser.userData.avatar || assets.defaultAvatar
                 }
-                alt={chatUser.userData.name || "Anonymous"}
+                alt={
+                  message.sId === userData.id
+                    ? anonNames[userData.id] || userData.name || "Anonymous"
+                    : anonNames[chatUser.rId] || chatUser.userData.name || "Anonymous"
+                }
               />
               <p>{convertTimestamp(message.createdAt)}</p>
             </div>
