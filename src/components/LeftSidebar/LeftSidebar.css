@@ -62,17 +62,11 @@
   margin-top: 10px;
 }
 
-.friends img,
-.user img {
-  width: 35px;
-  aspect-ratio: 1/1;
-  border-radius: 50%;
-}
-
 .friends,
 .user {
-  display: flex;
+  display: flex; /* horizontal layout */
   align-items: center;
+  justify-content: space-between; /* profile + info vs delete */
   gap: 10px;
   padding: 10px 20px;
   cursor: pointer;
@@ -80,10 +74,24 @@
   transition: background-color 0.2s;
 }
 
-.friends div,
-.user div {
+.friend-info-wrapper {
+  display: flex; /* horizontal layout for image + text */
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.friend-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* stack name + message vertically */
+}
+
+.friends img,
+.user img {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .friends span,
@@ -147,7 +155,21 @@
   color: #07fff3;
 }
 
-/* -------------------- Generate Chat Link Button -------------------- */
+/* Delete button */
+.delete-chat-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: white;
+  transition: color 0.2s;
+}
+
+.delete-chat-btn:hover {
+  color: red;
+}
+
+/* Generate Chat Link Button */
 .left-sidebar-bottom {
   padding: 15px 20px;
   border-top: 1px solid #444;
@@ -156,7 +178,7 @@
 .generate-link-btn {
   width: 100%;
   padding: 10px 0;
-  background-color: #077eff; /* matches hover color of friends */
+  background-color: #077eff;
   color: white;
   font-size: 13px;
   font-weight: 500;

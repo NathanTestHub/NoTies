@@ -171,6 +171,7 @@ const FormCheck = () => {
                 : ""}
             </small>
             <div style={{ marginTop: "8px" }}>
+              {post.userId !== currentUser?.uid && (  
               <button
                 onClick={() => handleChat(post)}
                 className="chat-btn"
@@ -178,6 +179,7 @@ const FormCheck = () => {
               >
                 Chat
               </button>
+              )}  
               {post.userId === currentUser?.uid && (
                 <button
                   onClick={() => handleDelete(post.id, post.userId)}

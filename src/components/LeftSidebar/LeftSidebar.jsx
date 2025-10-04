@@ -34,19 +34,14 @@ const LeftSidebar = () => {
   const [user, setUser] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
-  // -------------------- Convert chatData object to array --------------------
   const chatList = Array.isArray(chatData)
     ? chatData
     : chatData
-      ? Object.keys(chatData)
-          .filter((key) => key !== "messages") // skip messages array if exists
-          .map((key) => chatData[key])
-      : [];
+    ? Object.keys(chatData)
+        .filter((key) => key !== "messages")
+        .map((key) => chatData[key])
+    : [];
 
-  console.log("Rendering LeftSidebar, chatData:", chatData);
-  console.log("Rendering LeftSidebar, chatList (array):", chatList);
-
-  // -------------------- Search Users --------------------
   const inputHandler = async (e) => {
     try {
       const input = e.target.value;
@@ -78,7 +73,6 @@ const LeftSidebar = () => {
     }
   };
 
-  // -------------------- Add Chat --------------------
   const addChat = async () => {
     if (!user) return;
     const messageRef = collection(db, "messages");
@@ -123,17 +117,14 @@ const LeftSidebar = () => {
       });
       setShowSearch(false);
       setChatVisible(true);
-      console.log("Added new chat with user:", uData);
     } catch (error) {
       toast.error(error.message);
       console.error("Error in addChat:", error);
     }
   };
 
-  // -------------------- Set Chat --------------------
   const setChat = async (item) => {
     try {
-      console.log("Setting chatUser:", item);
       setMessagesId(item.messageId);
       setChatUser(item);
 
@@ -159,35 +150,51 @@ const LeftSidebar = () => {
     }
   };
 
-  // -------------------- Update Chat User Data --------------------
+  const deleteChat = async (messageId) => {
+    if (!messageId) return;
+    try {
+      const userChatsRef = doc(db, "chats", userData.id);
+      const userChatsSnap = await getDoc(userChatsRef);
+      if (!userChatsSnap.exists()) return;
+
+      const userChatsData = userChatsSnap.data();
+      const updatedChats = userChatsData.chatsData.filter(
+        (c) => c.messageId !== messageId
+      );
+
+      await setDoc(userChatsRef, { chatsData: updatedChats }, { merge: true });
+      toast.success("Chat deleted!");
+      if (messagesId === messageId) setChatVisible(false);
+    } catch (error) {
+      console.error("Failed to delete chat:", error);
+      toast.error("Failed to delete chat.");
+    }
+  };
+
   useEffect(() => {
     const updateChatUserData = async () => {
       if (chatUser?.userData?.id) {
-        console.log("Updating chatUser data for:", chatUser.userData.id);
         const userRef = doc(db, "users", chatUser.userData.id);
         const userSnap = await getDoc(userRef);
         const updatedUserData = userSnap.data();
-        console.log("Fetched updated userData:", updatedUserData);
         setChatUser((prev) => ({ ...prev, userData: updatedUserData }));
       }
     };
     updateChatUserData();
   }, [chatData]);
 
-  // -------------------- Generate Chat Link --------------------
   const generateChatLink = async () => {
     try {
       const linkId = crypto.randomUUID();
       await setDoc(doc(db, "chatLinks", linkId), {
         userId: userData.id,
         createdAt: serverTimestamp(),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // optional 24h expiry
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
       });
 
       const link = `${window.location.origin}/chat-link/${linkId}`;
       navigator.clipboard.writeText(link);
       toast.success("Chat link copied to clipboard!");
-      console.log("Generated chat link:", link);
     } catch (error) {
       console.error("Failed to generate chat link:", error);
       toast.error("Failed to generate chat link.");
@@ -228,7 +235,6 @@ const LeftSidebar = () => {
             if (!item?.userData) return null;
             return (
               <div
-                onClick={() => setChat(item)}
                 key={index}
                 className={`friends ${
                   item.messageSeen || item.messageId === messagesId
@@ -236,14 +242,25 @@ const LeftSidebar = () => {
                     : "border"
                 }`}
               >
-                <img
-                  src={item.userData.avatar || assets.defaultAvatar}
-                  alt={item.userData.name || "Unknown User"}
-                />
-                <div>
-                  <p>{item.userData.name || "Unknown User"}</p>
-                  <span>{item.lastMessage || ""}</span>
+                <div
+                  className="friend-info-wrapper"
+                  onClick={() => setChat(item)}
+                >
+                  <img
+                    src={item.userData.avatar || assets.defaultAvatar}
+                    alt={item.userData.name || "Unknown User"}
+                  />
+                  <div className="friend-info">
+                    <p>{item.userData.name || "Unknown User"}</p>
+                    <span>{item.lastMessage || ""}</span>
+                  </div>
                 </div>
+                <button
+                  className="delete-chat-btn"
+                  onClick={() => deleteChat(item.messageId)}
+                >
+                  🗑️
+                </button>
               </div>
             );
           })
