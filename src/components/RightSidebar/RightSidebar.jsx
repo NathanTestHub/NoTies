@@ -5,18 +5,66 @@ import { logout } from "../../config/firebase";
 import { AppContext } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 
+// --- Anonymous name system (same as ChatBox) ---
+const anonPrefixes = [
+  "BlueFox",
+  "RedPanda",
+  "SilverWolf",
+  "GoldenHawk",
+  "GreenTurtle",
+  "BlackJaguar",
+  "PurpleOwl",
+  "OrangeLion",
+];
+const anonNameMap = {};
+const getOrCreateAnonName = async (messageId, userId) => {
+  if (!messageId || !userId) return "Anonymous";
+  const key = `${messageId}_${userId}`;
+  if (anonNameMap[key]) return anonNameMap[key];
+
+  const anonRef = doc(db, "anonNames", key);
+  const anonSnap = await getDoc(anonRef);
+
+  if (anonSnap.exists()) {
+    anonNameMap[key] = anonSnap.data().anonName;
+    return anonNameMap[key];
+  }
+
+  const prefix = anonPrefixes[Math.floor(Math.random() * anonPrefixes.length)];
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  const newAnon = `${prefix}${suffix}`;
+
+  await setDoc(anonRef, { anonName: newAnon });
+  anonNameMap[key] = newAnon;
+  return newAnon;
+};
+
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../config/firebase";
+
 const RightSidebar = () => {
-  const { userData, messages } = useContext(AppContext); // use userData instead of chatUser
+  const { userData, messagesId, messages } = useContext(AppContext);
   const [messageImages, setMessageImages] = useState([]);
+  const [anonName, setAnonName] = useState("Anonymous");
   const navigate = useNavigate();
 
+  // --- Load message images ---
   useEffect(() => {
-    let tempVar = [];
-    messages.map((message) => {
-      if (message.image) tempVar.push(message.image);
-    });
-    setMessageImages(tempVar);
+    const images = messages.filter((m) => m.image).map((m) => m.image);
+    setMessageImages(images);
   }, [messages]);
+
+  // --- Load anonName for current user ---
+  useEffect(() => {
+    if (!messagesId || !userData?.id) return;
+
+    const loadAnon = async () => {
+      const anon = await getOrCreateAnonName(messagesId, userData.id);
+      setAnonName(anon);
+    };
+
+    loadAnon();
+  }, [messagesId, userData?.id]);
 
   const handleCreateForm = () => {
     navigate("/form-check");
@@ -27,12 +75,12 @@ const RightSidebar = () => {
       <div className="right-sidebar-profile">
         <img src={userData.avatar || assets.defaultAvatar} alt="Profile" />
         <h3>
-          {Date.now() - (userData.lastSeen || 0) <= 70000 ? (
+          {Date.now() - (userData.lastSeen || 0) <= 70000 && (
             <img src={assets.green_dot} className="dot" alt="Online" />
-          ) : null}
+          )}
           {userData.name || "Your Name"}
         </h3>
-        <p>{userData.bio || "No bio available"}</p>
+        <p>{anonName}</p> {/* Display current user's anonName */}
       </div>
       <hr />
       <div className="right-sidebar-media">
