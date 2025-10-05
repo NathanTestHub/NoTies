@@ -9,8 +9,9 @@ import {
   query,
   orderBy,
   doc,
-  setDoc,
   getDoc,
+  setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -19,10 +20,11 @@ import { useAuth } from "../../context/AuthContext";
 const FormCheck = () => {
   const [input, setInput] = useState("");
   const [posts, setPosts] = useState([]);
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
-  // --- Add a post ---
+  // --- Add a new post ---
   const handlePost = async () => {
     if (!input.trim()) {
       toast.error("Please type something before posting!");
@@ -30,27 +32,40 @@ const FormCheck = () => {
     }
 
     try {
+      const counterRef = doc(db, "meta", "postCounter");
+      const counterSnap = await getDoc(counterRef);
+      let nextNumber = 1;
+
+      if (counterSnap.exists()) {
+        nextNumber = (counterSnap.data().lastPostNumber || 0) + 1;
+        await updateDoc(counterRef, { lastPostNumber: nextNumber });
+      } else {
+        await setDoc(counterRef, { lastPostNumber: 1 });
+      }
+
       await addDoc(collection(db, "posts"), {
         text: input.trim(),
         createdAt: serverTimestamp(),
         userId: currentUser.uid,
         userName: currentUser.displayName || "Anonymous",
+        deleted: false,
+        postNumber: nextNumber,
       });
+
       toast.success("Post added!");
       setInput("");
     } catch (error) {
-      console.error("Error posting:", error);
+      console.error("Error adding post:", error);
       toast.error(error.message);
     }
   };
 
-  // --- Delete post ---
+  // --- Delete a post ---
   const handleDelete = async (postId, postOwner) => {
-    if (currentUser?.uid !== postOwner) {
+    if (currentUser.uid !== postOwner) {
       toast.error("You can only delete your own posts!");
       return;
     }
-
     try {
       await setDoc(doc(db, "posts", postId), { deleted: true }, { merge: true });
       toast.success("Post deleted!");
@@ -60,37 +75,29 @@ const FormCheck = () => {
     }
   };
 
-  // --- Fetch posts in real-time ---
+  // --- Real-time fetch posts ---
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newPosts = snapshot.docs
+      const fetchedPosts = snapshot.docs
         .filter((doc) => !doc.data()?.deleted)
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-      setPosts(newPosts);
+        .map((doc) => ({ id: doc.id, ...doc.data() }));
+      setPosts(fetchedPosts);
     });
-
     return () => unsubscribe();
   }, []);
 
-  // --- Handle chat initiation ---
+  // --- Initiate chat ---
   const handleChat = async (post) => {
     try {
-      const user1 = currentUser?.uid;
+      const user1 = currentUser.uid;
       const user2 = post.userId;
-      if (!user1 || !user2) {
-        toast.error("Missing user info.");
-        return;
-      }
+      if (!user1 || !user2) throw new Error("Missing user info.");
 
       const chatId = user1 < user2 ? `${user1}_${user2}` : `${user2}_${user1}`;
       const chatRef = doc(db, "messages", chatId);
       const chatSnap = await getDoc(chatRef);
 
-      // Create the messages document if it doesn't exist
       if (!chatSnap.exists()) {
         await setDoc(chatRef, {
           participants: [user1, user2],
@@ -98,15 +105,13 @@ const FormCheck = () => {
           lastMessage: "Hey, let's chat!",
         });
 
-        // Initialize empty subcollection
-        const initialMessage = collection(chatRef, "messages");
-        await addDoc(initialMessage, {
+        const messagesCol = collection(chatRef, "messages");
+        await addDoc(messagesCol, {
           sId: user1,
           text: "Hey, let's chat!",
           createdAt: serverTimestamp(),
         });
 
-        // Add this chat to both users' chat lists
         for (const uid of [user1, user2]) {
           const userChatsRef = doc(db, "chats", uid);
           const userChatsSnap = await getDoc(userChatsRef);
@@ -115,7 +120,7 @@ const FormCheck = () => {
             rId: uid === user1 ? user2 : user1,
             lastMessage: "Hey, let's chat!",
             updatedAt: Date.now(),
-            messageSeen: uid === user1 ? true : false,
+            messageSeen: uid === user1,
           };
 
           if (userChatsSnap.exists()) {
@@ -134,13 +139,8 @@ const FormCheck = () => {
         }
       }
 
-      // Navigate to chat box
       navigate(`/chat/${chatId}`, {
-        state: {
-          userId: post.userId,
-          userName: post.userName,
-          messageId: chatId,
-        },
+        state: { userId: post.userId, userName: post.userName, messageId: chatId },
       });
     } catch (error) {
       console.error("Error initiating chat:", error);
@@ -148,25 +148,32 @@ const FormCheck = () => {
     }
   };
 
+  // --- Filter posts by search ---
+  const filteredPosts = posts.filter((post) => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    const numberMatch = post.postNumber?.toString().includes(q);
+    const textMatch = post.text?.toLowerCase().includes(q) || post.userName?.toLowerCase().includes(q);
+    return numberMatch || textMatch;
+  });
+
   return (
     <div className="form-check">
-      {/* ← Back arrow button */}
-      <button
-        className="back-btn"
-        onClick={() => navigate("/chat")}
-        style={{
-          position: "absolute",
-          left: "10px",
-          top: "10px",
-          background: "transparent",
-          border: "none",
-          fontSize: "1.5rem",
-          cursor: "pointer",
-        }}
-      >
-        &rarr;
-      </button>
+      {/* Top Bar: Back + Search */}
+      <div className="top-bar">
+        <button className="back-btn" onClick={() => navigate("/chat")}>
+          &larr;
+        </button>
+        <input
+          type="text"
+          placeholder="Search by post number or text..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="search-bar"
+        />
+      </div>
 
+      {/* Post input */}
       <textarea
         className="post-input"
         value={input}
@@ -177,30 +184,21 @@ const FormCheck = () => {
         Post
       </button>
 
+      {/* Posts list */}
       <div className="posts-list">
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <div key={post.id} className="post-item">
-            <strong>{post.userName}</strong>
+            <strong>#{post.postNumber} • {post.userName}</strong>
             <p>{post.text}</p>
-            <small>
-              {post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : ""}
-            </small>
-            <div style={{ marginTop: "8px" }}>
-              {post.userId !== currentUser?.uid && (
-                <button
-                  onClick={() => handleChat(post)}
-                  className="chat-btn"
-                  style={{ marginRight: "10px" }}
-                >
+            <small>{post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : ""}</small>
+            <div className="post-actions">
+              {post.userId !== currentUser.uid && (
+                <button className="chat-btn" onClick={() => handleChat(post)}>
                   Chat
                 </button>
               )}
-              {post.userId === currentUser?.uid && (
-                <button
-                  onClick={() => handleDelete(post.id, post.userId)}
-                  className="delete-btn"
-                  style={{ background: "red", color: "white" }}
-                >
+              {post.userId === currentUser.uid && (
+                <button className="delete-btn" onClick={() => handleDelete(post.id, post.userId)}>
                   Delete
                 </button>
               )}
