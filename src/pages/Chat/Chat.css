@@ -1,7 +1,8 @@
 .chat{
     min-height: 100vh;
     /* background: linear-gradient(#59deff, #e6ab09); */
-    background: #735504;
+    /*background: #735504;*/
+    background: rgb(149, 212, 241);
     display: grid;
     place-items: center;
 }

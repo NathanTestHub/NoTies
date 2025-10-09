@@ -262,7 +262,7 @@ const LeftSidebar = () => {
                     />
                     <div className="friend-info">
                       <p>
-                        {item.userData.name || "Unknown User"}{" "}
+                        <span className="name">{item.userData.name || "Unknown User"}</span>{" "}
                         {item.userData.anonName ? `(${item.userData.anonName})` : ""}
                       </p>
                       <span>{item.lastMessage || ""}</span>

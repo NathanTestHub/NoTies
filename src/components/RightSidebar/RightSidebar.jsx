@@ -117,7 +117,7 @@ const RightSidebar = () => {
       </div>
 
       <div className="right-sidebar-buttons">
-        <button onClick={generateChatLink}>Generate Chat Link</button>
+        <button onClick={generateChatLink}>Invite</button>
         <button onClick={handleCreateForm}>Post</button>
         <button onClick={() => logout()}>Logout</button>
       </div>
